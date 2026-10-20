@@ -1,0 +1,27 @@
+{
+  "name": "communication-system",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Privacy-focused, end-to-end encrypted messaging. Matrix-first architecture (see docs/architecture).",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "build": "pnpm -r --if-present build",
+    "poc": "pnpm --filter poc-matrix-e2ee poc",
+    "poc:inspect": "pnpm --filter poc-matrix-e2ee inspect"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.5",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

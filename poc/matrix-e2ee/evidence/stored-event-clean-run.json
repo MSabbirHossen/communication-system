@@ -1,0 +1,38 @@
+{
+  "sent_plaintext_by_alice": "Hello from Alice. POC-PLAINTEXT-1147f4b83961996e-1",
+  "stored_on_server": {
+    "auth_events": [
+      "$wvUb1pPLynSkqdrbkvnCCOtIpzP8UpE6Vzz7A5P6QXs",
+      "$PnzOOQiVtpq7_e7M5gIWYBzsnc9QqSWaSzo57nNOQ4Y",
+      "$fHnPld7tS0JkW-L-hx0H463XGaX1j0bXJKuk3qu-j2s"
+    ],
+    "prev_events": [
+      "$bzZ0qIytM2UF54qZef847aDWF-iusnOJwz650Mz5UkA"
+    ],
+    "type": "m.room.encrypted",
+    "room_id": "!QaUrYCLMZYvuElHQmL:localhost",
+    "sender": "@poc-alice-77a2f5ca:localhost",
+    "content": {
+      "algorithm": "m.megolm.v1.aes-sha2",
+      "ciphertext": "AwgAEqABIA4Cyo0lnNAAE5xb0afUEJ+sd38yfIlaeGnejtzzasvlhjB9Vlh5oFMYJ9qXKN9UbeJk2t4LafG0fYUZEV8GwOkNjdr57I44g/fT+ywcnF24JP73nq1UjEDVohnpDhcmCcUeMjUhIEzJ8rWbnOCUIJVGqwtuJNnGoeaPraiOT5J+4hr/Ceu21gEg2PQh9lgh4KU9jjkI8Nq3uXpEIIHgRy3HYplSSgsxg/2blhOUZXk+P+2Oad0Dom4yZu/kaRo7la6MIUq3qRhFIWaDOqPL7jGbuEoUWZSwcmF1gqj8kYip5cSSWJnfCg",
+      "device_id": "YIYSMCTSKQ",
+      "sender_key": "RwXTdSpMEDvVIbN/Py1fvmpAmQK/CKEShOp40kfFOSs",
+      "session_id": "qvDA2JHH4EjtDbi9h2+YvyAigj83obCK49rLEijZ4EE"
+    },
+    "depth": 9,
+    "prev_state": [],
+    "origin": "localhost",
+    "origin_server_ts": 1792524705066,
+    "hashes": {
+      "sha256": "F/B0o/JhB4MNxyIkJPkKCbeisKh1pnluMRqtkl3Zb1o"
+    },
+    "signatures": {
+      "localhost": {
+        "ed25519:a_vSbu": "yHp2mPGZHe/dafkHBLdZnENCYtT/I270NkKRgKzN2DBm8ayA+ap0CjrcddJgqdWRz0AxPVR8FmEJTSVFBkElBQ"
+      }
+    },
+    "unsigned": {
+      "age_ts": 1792524705066
+    }
+  }
+}

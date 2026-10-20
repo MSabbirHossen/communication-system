@@ -1,0 +1,19 @@
+
+== Inspecting C:/Users/User/AppData/Local/Temp/claude/C--Users-User--claude-spares-spare-yGNKwz/dbd4457a-7221-454c-8807-74cc631c1cc2/scratchpad/synapse/data/homeserver.db for room !QaUrYCLMZYvuElHQmL:localhost
+
+PASS  room events found in server DB  — 13 events
+  event types: {"m.room.create":1,"m.room.member":3,"m.room.power_levels":1,"m.room.join_rules":1,"m.room.history_visibility":1,"m.room.guest_access":1,"m.room.encryption":1,"m.room.encrypted":4}
+PASS  no m.room.message (plaintext) events stored
+PASS  encrypted events present  — 4 m.room.encrypted events
+PASS  every encrypted event is megolm ciphertext with no body
+PASS  no stored event JSON contains a forbidden plaintext
+  sample $qw0FmnDrdRtwRTsdCIa0kL65RIRISqrJ2nqUFQEFgjk:
+    algorithm=m.megolm.v1.aes-sha2 session_id=qvDA2JHH4Ejt…
+    ciphertext=AwgAEqABIA4Cyo0lnNAAE5xb0afUEJ+sd38yfIlaeGnejtzzasvlhjB9Vlh5… (318 chars)
+    content keys=algorithm,ciphertext,device_id,sender_key,session_id
+PASS  forbidden plaintexts absent from the entire DB file  — 1760 KiB scanned, 3 strings
+PASS  device key table holds only public keys  — 3 device key records
+  sample device key record: {"algorithms":["m.olm.v1.curve25519-aes-sha2","m.megolm.v1.aes-sha2"],"device_id":"YIYSMCTSKQ","keys":{"curve25519:YIYSMCTSKQ":"RwXTdSpMEDvVIbN/Py1fvmpAmQK/CKES…
+PASS  forbidden plaintexts absent from homeserver log  — 110 KiB scanned
+
+== Server inspection passed: the server holds ciphertext only

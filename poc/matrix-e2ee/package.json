@@ -1,0 +1,17 @@
+{
+  "name": "poc-matrix-e2ee",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Phase 0 proof of concept: two Matrix accounts exchange an end-to-end encrypted direct message; server stores ciphertext only.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "poc": "node src/poc.mjs",
+    "inspect": "node src/inspect-server.mjs"
+  },
+  "dependencies": {
+    "matrix-js-sdk": "44.0.0"
+  }
+}

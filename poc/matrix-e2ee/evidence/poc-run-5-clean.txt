@@ -1,0 +1,48 @@
+== Phase 0 E2EE proof of concept (run 77a2f5ca) against http://localhost:8008
+1. Registering accounts and devices
+PASS  two accounts registered  — @poc-alice-77a2f5ca:localhost, @poc-bob-77a2f5ca:localhost
+PASS  second device signed in for Bob
+  alice: @poc-alice-77a2f5ca:localhost / YIYSMCTSKQ  ed25519=OsmMgtCZ/YTbxJDp…
+  bob1 : @poc-bob-77a2f5ca:localhost / RRVNBJWSTA  ed25519=v4cOoOu/5rFOS7fE…
+  bob2 : @poc-bob-77a2f5ca:localhost / GDBLWYREMZ  ed25519=ssotbMdOz+1iRAbX…
+2. Creating an encrypted direct room
+PASS  room is encrypted on Alice's side  — !QaUrYCLMZYvuElHQmL:localhost
+3. Device identity and verification
+PASS  Alice sees both of Bob's devices  — GDBLWYREMZ, RRVNBJWSTA
+PASS  Bob's device starts unverified
+  Bob device GDBLWYREMZ (Bob laptop) ed25519=ssotbMdOz+1iRAbX…
+  Bob device RRVNBJWSTA (Bob phone) ed25519=v4cOoOu/5rFOS7fE…
+PASS  Alice marked Bob's device verified
+4. Sending and decrypting an encrypted message
+PASS  sender's wire event type is m.room.encrypted  — $qw0FmnDrdRtwRTsdCIa0kL65RIRISqrJ2nqUFQEFgjk
+PASS  wire content has ciphertext and no body  — algorithm=m.megolm.v1.aes-sha2
+PASS  wire content does not contain the plaintext
+PASS  Bob device 1 decrypted message 1
+PASS  Bob device 2 decrypted message 1
+PASS  decrypted event is flagged encrypted and verified sender
+5. Network interruption: Bob's laptop loses connectivity, Alice sends, laptop reconnects
+PASS  client reports connection loss (sync state ERROR/RECONNECTING)  — state=RECONNECTING failedRequests=1
+PASS  offline device has not seen message 2 yet  — offline for 3s, failed requests so far=1
+PASS  reconnected device received message 2 exactly once  — count=1
+PASS  device 1 also has message 2 exactly once
+PASS  sync state recovered to SYNCING after the outage  — transitions: SYNCING → RECONNECTING → SYNCING
+PASS  message 1 still readable after reconnect (keys retained)
+6. Retrying a send with the same transaction ID
+PASS  client refuses to queue a second send with a known txnId  — addPendingEvent called on an event with known txnId poc-txn-77a2f5ca
+PASS  server returns the same event_id for a replayed txnId  — $Sjl27kYa3I3_G66xzbCI6uU0Xa_ck5BApGWzTf4L9yQ === $Sjl27kYa3I3_G66xzbCI6uU0Xa_ck5BApGWzTf4L9yQ
+PASS  recipient sees retried message exactly once  — count=1
+7. Late device cannot decrypt earlier messages
+  bob3 : @poc-bob-77a2f5ca:localhost / SQOSJLEEDJ  ed25519=fdgzVg5NVzejShLL…
+PASS  late device cannot decrypt message 1  — reason=HISTORICAL_MESSAGE_NO_KEY_BACKUP
+PASS  late device sees ciphertext, not plaintext
+8. Logout revokes the device token
+PASS  logged-out device's token is rejected
+9. Forcing encryption failures: nothing may be sent in plaintext
+PASS  client without crypto refuses to send into encrypted room  — This room is configured to use encryption, but your client does not support encryption.
+PASS  send rejects when encryption fails  — simulated encryption failure (PoC)
+PASS  failed message stays local with status not_sent  — local status=not_sent
+PASS  server has no plaintext m.room.message events  — plain=0
+PASS  server never received the forbidden strings
+PASS  server event count unchanged by the failed sends  — 12 → 12
+PASS  encryption works again after the simulated failure  — $3CSbXsSn5xI-f0-XHikU7HOLwCSDQ6IVd9Xkql5z5f0
+== 31/31 checks passed. Details written to last-run.json

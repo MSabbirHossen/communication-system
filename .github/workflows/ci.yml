@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  poc-e2ee:
+    # Phase 0 proof of concept against a *current* Synapse in Docker.
+    # Verifies that two accounts exchange an encrypted DM, that the server
+    # stores ciphertext only, and that no plaintext fallback occurs.
+    name: E2EE proof of concept (Synapse in Docker)
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Synapse config
+        run: |
+          mkdir -p "$RUNNER_TEMP/synapse"
+          chmod 777 "$RUNNER_TEMP/synapse"
+          docker run --rm \
+            -v "$RUNNER_TEMP/synapse:/data" \
+            -e SYNAPSE_SERVER_NAME=localhost \
+            -e SYNAPSE_REPORT_STATS=no \
+            matrixdotorg/synapse:latest generate
+          # Dev-only overrides: open registration without verification so the
+          # PoC can create throwaway accounts. Never use these in production.
+          cat >> "$RUNNER_TEMP/synapse/homeserver.yaml" <<'EOF'
+          enable_registration: true
+          enable_registration_without_verification: true
+          suppress_key_server_warning: true
+          rc_registration:
+            per_second: 100
+            burst_count: 100
+          rc_login:
+            address: { per_second: 100, burst_count: 100 }
+            account: { per_second: 100, burst_count: 100 }
+            failed_attempts: { per_second: 100, burst_count: 100 }
+          rc_message:
+            per_second: 100
+            burst_count: 100
+          EOF
+
+      - name: Start Synapse
+        run: |
+          docker run -d --name synapse \
+            -v "$RUNNER_TEMP/synapse:/data" \
+            -p 8008:8008 \
+            matrixdotorg/synapse:latest
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8008/_matrix/client/versions >/dev/null; then echo "Synapse ready"; break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:8008/_matrix/client/versions
+          docker exec synapse python -c "import synapse; print('Synapse', synapse.__version__)"
+
+      - name: Run PoC (two accounts, encrypted DM, offline catch-up, no plaintext fallback)
+        run: pnpm poc
+        env:
+          HOMESERVER_URL: http://localhost:8008
+
+      - name: Inspect server database for plaintext
+        run: |
+          docker stop synapse
+          sudo chmod -R a+r "$RUNNER_TEMP/synapse"
+          pnpm poc:inspect -- --db "$RUNNER_TEMP/synapse/homeserver.db" --log "$RUNNER_TEMP/synapse/homeserver.log"
+
+      - name: Upload PoC evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poc-evidence
+          path: |
+            poc/matrix-e2ee/last-run.json
+            ${{ runner.temp }}/synapse/homeserver.log
+          if-no-files-found: ignore

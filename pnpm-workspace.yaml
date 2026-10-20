@@ -1,0 +1,4 @@
+packages:
+  - "poc/*"
+  - "apps/*"
+  - "packages/*"
