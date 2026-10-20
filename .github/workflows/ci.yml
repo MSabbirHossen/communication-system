@@ -38,8 +38,9 @@ jobs:
     needs: checks
     env:
       SYNAPSE_IMAGE: ghcr.io/element-hq/synapse:latest
-      SYNAPSE_DIR: ${{ runner.temp }}/synapse
     steps:
+      - name: Set paths
+        run: echo "SYNAPSE_DIR=$RUNNER_TEMP/synapse" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
