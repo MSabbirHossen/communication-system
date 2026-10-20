@@ -147,9 +147,24 @@ Confirmed from the stored event and tables during inspection, in line with TRD �
 
 None of this is protected by E2EE; the privacy disclosure must say so.
 
-## 8. Requested re-run against current Synapse in Docker — Blocked
+## 8. Re-run against current Synapse in Docker — Verified in CI
 
-Requested by the owner on 2026-10-20 after the first report. Outcome: **Blocked, not run.** On this machine there is no `docker` on `PATH`, no binary under `C:\Program Files\Docker\Docker` or `%LOCALAPPDATA%\Programs\Docker`, no Docker process, no Docker Desktop entry in `winget list`, WSL is "not installed", and no podman/nerdctl. The evidence above therefore still rests on Synapse 1.67.0 with the Windows shims. The CI job (`poc-e2ee` in `.github/workflows/ci.yml`) is the prepared route for current-Synapse evidence; it needs the repository to be committed and pushed, which has not happened (the remote `origin` exists but has no branches).
+**Local machine:** still **Blocked**. There is no `docker` on `PATH` or in the Docker Desktop install locations, no Docker process, no Docker Desktop entry in `winget list`, WSL is "not installed", and no podman/nerdctl.
+
+**GitHub Actions (`poc-e2ee` job in `.github/workflows/ci.yml`):** **Verified.** The identical PoC and inspector ran against the current official image:
+
+| Item | Value |
+|---|---|
+| Image | `ghcr.io/element-hq/synapse:latest` → `sha256:97665cd4539dcf107c69fb6afdb720e1d1c9c09fb2b5701fb13d6c33b22cd8f0` |
+| Synapse version | **1.163.0** (`/_synapse/admin/v1/server_version`) |
+| Green runs | [39491618424](https://github.com/MSabbirHossen/communication-system/actions/runs/39491618424) (31/31 PoC, inspection 7/7 with the log scan skipped) and [39492012245](https://github.com/MSabbirHossen/communication-system/actions/runs/39492012245) (31/31 PoC, **inspection 8/8** including the container-log scan) |
+| Registration probe | `POST /_matrix/client/v3/register {}` → `401` with `flows: [{stages: ["m.login.dummy"]}]` (dev-only override active) |
+
+How to read the evidence without signing in: GitHub shows step logs and job summaries only to signed-in users, so the job publishes its results as **check annotations**, which are public: `GET https://api.github.com/repos/MSabbirHossen/communication-system/check-runs/<job id>/annotations`. For run 39492012245 the job id is `118867638720`; the annotations read `poc PASS=31 FAIL=0`, `inspect PASS=8 FAIL=0`, and the image digest and server version above. The `poc-evidence` artifact (PoC log, inspector log, generate log, container log, `last-run.json`) is attached to each run for signed-in reviewers.
+
+First-run problems fixed to get there (commits `29d6125` … `3f6679e`): the `runner` context is invalid in job-level `env`; the image writes its files as uid 991 so the dev overrides could not be appended (fixed with `UID`/`GID`); the generated `homeserver.yaml` has no trailing newline so the first override was glued onto a comment line and ignored; the image logs to stdout, so the container log is now captured for the plaintext scan. The pull from `ghcr.io` succeeded on the first attempt.
+
+**What this changes:** every claim in §1–§7 now holds on both Synapse 1.67.0 (local, shimmed) and Synapse 1.163.0 (CI, official image, unmodified). The Windows shim route is no longer load-bearing for the Phase 0 evidence.
 
 ## 9. Known limitations of this PoC
 

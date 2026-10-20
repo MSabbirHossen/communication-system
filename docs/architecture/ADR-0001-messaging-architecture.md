@@ -94,7 +94,7 @@ The comparison must cover security, licensing, web/mobile compatibility, develop
 
 ### 4.1 Results
 
-Full output and the stored-event dump are in `poc/matrix-e2ee/RESULTS.md` and `evidence/`. Two recorded runs: `c53fc0cd` and `77a2f5ca` (wiped database), 31/31 client checks and 9/9 server-inspection checks each.
+Full output and the stored-event dump are in `poc/matrix-e2ee/RESULTS.md` and `evidence/`. Two recorded local runs: `c53fc0cd` and `77a2f5ca` (wiped database), 31/31 client checks and 8/8 server-inspection checks each; plus two CI runs against Synapse 1.163.0 with the same result (§4.2).
 
 | IMPLEMENTATION_PLAN §8 item | Status | Evidence |
 |---|---|---|
@@ -102,7 +102,7 @@ Full output and the stored-event dump are in `poc/matrix-e2ee/RESULTS.md` and `e
 | 2. Device identity established and verified | Verified | ed25519 fingerprints; unverified → verified by fingerprint |
 | 3. Encrypted DM sent | Verified | wire type `m.room.encrypted`, megolm, no body |
 | 4. Recipient decrypts (two devices) | Verified | exact plaintext returned on both devices |
-| 5. Server stores ciphertext only | Verified | direct SQLite read: 0 `m.room.message`, nonce absent from DB file and log |
+| 5. Server stores ciphertext only | Verified (Synapse 1.67.0 locally **and** 1.163.0 in CI) | direct SQLite read: 0 `m.room.message`, nonce absent from DB file and log |
 | 6. Recovery from network interruption, no duplicates | Verified | `SYNCING → RECONNECTING → SYNCING`; exactly one copy; txnId replay returns same event_id |
 | 7a. Web SDK viable | Verified (Node) | same SDK/crypto packages as browser |
 | 7b. Mobile SDK viable | **Blocked — not tested** | §5 |
@@ -120,7 +120,7 @@ Attempted in this order on 2026-10-20:
 
 Consequence: the PoC proves client-SDK and protocol properties, not the operation of a current Synapse. `.github/workflows/ci.yml` re-runs the identical PoC against `matrixdotorg/synapse:latest` in Docker; it has not executed yet because the repository has no commits on the remote. Phase 1 must provide a Docker/WSL2 dev homeserver.
 
-**Re-check on 2026-10-20 (later the same day), requested by the owner:** a re-run against `matrixdotorg/synapse:latest` in Docker on this machine was attempted and is **Blocked**: no `docker` binary exists on `PATH` or in the Docker Desktop install locations, no Docker process is running, `winget list` shows no Docker Desktop package, WSL reports "not installed", and no other container runtime (podman, nerdctl) is present. The current-Synapse evidence therefore still comes only from the CI job, which has not run.
+**Re-check on 2026-10-20 (later the same day), requested by the owner:** a local re-run in Docker is still **Blocked** (no `docker` binary, no Docker process, no Docker Desktop package, WSL "not installed", no podman/nerdctl). The repository was then committed and pushed with the owner's authorization, and the CI job ran the identical PoC against the official image `ghcr.io/element-hq/synapse:latest` (digest `sha256:97665cd4…`, **Synapse 1.163.0**): **31/31 PoC checks and 8/8 server-inspection checks passed** in runs [39491618424](https://github.com/MSabbirHossen/communication-system/actions/runs/39491618424) and [39492012245](https://github.com/MSabbirHossen/communication-system/actions/runs/39492012245). Results are published as public check annotations (see `poc/matrix-e2ee/RESULTS.md` §8). The Phase 0 evidence therefore no longer depends on Synapse 1.67.0 or the Windows shims; condition **C6 is satisfied**.
 
 ### 4.3 Crypto library status (Verified against official sources on 2026-10-20)
 
@@ -157,7 +157,7 @@ Findings from official sources, fetched 2026-10-20:
 - **C3 — Threat model maintained.** `docs/security/THREAT_MODEL.md` is updated whenever the SDK, server, storage or recovery design changes.
 - **C4 — No duplicate messaging state.** MongoDB collections are limited to `docs/BACKEND_SCHEMA.md`; any new collection touching messaging requires a new ADR.
 - **C5 — Server licence review.** If the project ever modifies Synapse, review AGPL implications first; Continuwuity is the Apache-2.0 fallback.
-- **C6 — Current-Synapse verification.** The CI PoC job against current Synapse must pass before Phase 2 relies on any server behaviour.
+- **C6 — Current-Synapse verification.** The CI PoC job against current Synapse must pass before Phase 2 relies on any server behaviour. **Satisfied 2026-10-20** (Synapse 1.163.0, runs 39491618424 and 39492012245).
 
 ## 7. Consequences
 
