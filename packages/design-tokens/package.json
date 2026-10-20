@@ -1,0 +1,24 @@
+{
+  "name": "@cs/design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Design system foundations from docs/UI_UX_BRIEF.md: colors (light/dark), typography, spacing, radius, elevation, breakpoints, motion. Generates CSS custom properties and a typed token object.",
+  "type": "module",
+  "files": [
+    "dist",
+    "tokens.json"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/tokens.d.ts",
+      "default": "./dist/tokens.js"
+    },
+    "./tokens.css": "./dist/tokens.css",
+    "./tokens.json": "./tokens.json"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}
