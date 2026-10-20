@@ -1,0 +1,53 @@
+# Local development environment: Matrix homeserver (Synapse) and MongoDB.
+# DEVELOPMENT ONLY. Registration is open and unverified (see synapse/dev-overrides.yaml).
+#
+#   pnpm dev:env:init   # once: generate Synapse config into ./synapse/data (git-ignored)
+#   pnpm dev:env        # docker compose up -d
+#   pnpm dev:env:down   # stop
+#   pnpm dev:env:reset  # wipe Synapse data and MongoDB volume, then re-init
+#
+# Synapse image: the Phase 0 PoC was verified in CI against
+# ghcr.io/element-hq/synapse@sha256:97665cd4539dcf107c69fb6afdb720e1d1c9c09fb2b5701fb13d6c33b22cd8f0 (1.163.0).
+name: communication-system
+
+services:
+  synapse:
+    image: ghcr.io/element-hq/synapse:latest
+    container_name: cs-synapse
+    restart: unless-stopped
+    environment:
+      # Run as the host user so generated files are editable and readable (same lesson as CI).
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+    ports:
+      - "8008:8008"
+    volumes:
+      - ./synapse/data:/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:8008/_matrix/client/versions >/dev/null || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  mongo:
+    image: mongo:7
+    container_name: cs-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  mongo-data:

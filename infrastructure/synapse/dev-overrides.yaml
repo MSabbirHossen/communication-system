@@ -1,0 +1,16 @@
+# --- Development-only overrides appended by infrastructure/synapse/init.mjs ---
+# Open, unverified registration and relaxed rate limits so local clients and the
+# Phase 0 PoC can create throwaway accounts. NEVER use these values in production.
+enable_registration: true
+enable_registration_without_verification: true
+suppress_key_server_warning: true
+rc_registration:
+  per_second: 100
+  burst_count: 100
+rc_login:
+  address: { per_second: 100, burst_count: 100 }
+  account: { per_second: 100, burst_count: 100 }
+  failed_attempts: { per_second: 100, burst_count: 100 }
+rc_message:
+  per_second: 100
+  burst_count: 100
