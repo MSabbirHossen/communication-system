@@ -52,6 +52,11 @@ Executed 2026-10-21 on Windows 11, Node 22.20.0, pnpm 12.9.1, TypeScript 6.0.3:
 | Production CSP, real rate limits, monitoring | Phases 4/7 | Low |
 | Matrix SDK integration, auth, messaging UI, MongoDB collections | Phases 2/3/6 | n/a |
 
+## Decisions recorded 2026-10-21
+- **Phase 1 gate path: A.** The owner installs Docker Desktop (WSL2 backend) and follows `docs/runbooks/local-development.md` on the Windows development machine; the gate closes on that result, not on CI alone. Status: in progress (owner).
+- **Repository visibility: stays public** (github.com/MSabbirHossen/communication-system). Consequence: CI logs and job summaries are visible only to signed-in users, so results are published as public check annotations; no secrets are committed (gitleaks in CI, history scanned clean). Revisit before any real-user beta (Phase 8) together with the human security review.
+- Still provisional: Capacitor for mobile (ADR-0001 C2); Phase 5 needs a real Android and iOS device test before it is final.
+
 ## Next approved action
 Owner installs Docker Desktop and follows `docs/runbooks/local-development.md`; on success the owner approves the Phase 1 exit gate. Phase 2 (identity, authentication and device security) does not start before that approval.
 
