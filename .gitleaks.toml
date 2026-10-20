@@ -7,3 +7,6 @@ useDefault = true
 [allowlist]
 description = "Test fixtures and recorded PoC evidence (ciphertext only, no secrets)"
 paths = ['''.*\.test\.(ts|tsx|mjs)$''', '''poc/matrix-e2ee/evidence/.*''']
+# Throwaway probe value used by the CI dev-env job to prove auth headers are not logged
+# (present in history at commit 25ee13f).
+regexes = ['''syt_ci_probe_token_value''']
