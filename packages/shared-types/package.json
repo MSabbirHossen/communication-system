@@ -1,0 +1,20 @@
+{
+  "name": "@cs/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript types shared by the web client and the application API. No runtime code.",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

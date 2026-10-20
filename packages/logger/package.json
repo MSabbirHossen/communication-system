@@ -1,0 +1,28 @@
+{
+  "name": "@cs/logger",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Privacy-safe logging: pino for Node with redaction and scrubbing, a console adapter for the browser. Never logs secrets, tokens or message content.",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "pino": "10.4.0"
+  }
+}
