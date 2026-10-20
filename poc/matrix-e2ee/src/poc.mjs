@@ -95,7 +95,10 @@ async function register(username, password, deviceName) {
     // enable_registration_without_verification: true.
     const e = /** @type {any} */ (err);
     if (e?.httpStatus !== 401 || !e?.data?.session) throw err;
-    return tmp.registerRequest({ ...body, auth: { type: "m.login.dummy", session: e.data.session } });
+    return tmp.registerRequest({
+      ...body,
+      auth: { type: "m.login.dummy", session: e.data.session },
+    });
   }
 }
 
@@ -115,7 +118,8 @@ async function login(username, password, deviceName) {
  */
 /** @param {{ user_id?: string, access_token?: string, device_id?: string }} resp @returns {Session} */
 function asSession(resp) {
-  if (!resp.user_id || !resp.access_token || !resp.device_id) throw new Error("homeserver response lacks user_id/access_token/device_id");
+  if (!resp.user_id || !resp.access_token || !resp.device_id)
+    throw new Error("homeserver response lacks user_id/access_token/device_id");
   return { user_id: resp.user_id, access_token: resp.access_token, device_id: resp.device_id };
 }
 /** @param {sdk.MatrixClient} client */
@@ -157,9 +161,14 @@ async function makeClient(label, session) {
   // IndexedDB (web) or the SDK's persistent store (mobile).
   await client.initRustCrypto({ useIndexedDB: false });
   await client.startClient({ initialSyncLimit: 10, pollTimeout: 3000 });
-  await waitFor(`${label} initial sync`, () => client.getSyncState() === "PREPARED" || client.getSyncState() === "SYNCING");
+  await waitFor(
+    `${label} initial sync`,
+    () => client.getSyncState() === "PREPARED" || client.getSyncState() === "SYNCING",
+  );
   const keys = await requireCrypto(client).getOwnDeviceKeys();
-  console.log(`  ${label}: ${session.user_id} / ${session.device_id}  ed25519=${keys.ed25519.slice(0, 16)}…`);
+  console.log(
+    `  ${label}: ${session.user_id} / ${session.device_id}  ed25519=${keys.ed25519.slice(0, 16)}…`,
+  );
   return client;
 }
 
@@ -167,19 +176,27 @@ async function makeClient(label, session) {
 function findDecryptedMessage(client, roomId, body) {
   const room = client.getRoom(roomId);
   if (!room) return null;
-  return room.getLiveTimeline().getEvents().find((ev) => {
-    if (ev.getWireType() !== "m.room.encrypted") return false;
-    if (ev.isDecryptionFailure()) return false;
-    const clear = ev.getClearContent();
-    return clear?.msgtype === "m.text" && clear?.body === body;
-  }) ?? null;
+  return (
+    room
+      .getLiveTimeline()
+      .getEvents()
+      .find((ev) => {
+        if (ev.getWireType() !== "m.room.encrypted") return false;
+        if (ev.isDecryptionFailure()) return false;
+        const clear = ev.getClearContent();
+        return clear?.msgtype === "m.text" && clear?.body === body;
+      }) ?? null
+  );
 }
 
 /** @param {sdk.MatrixClient} client @param {string} roomId @param {string} body */
 function countMessages(client, roomId, body) {
   const room = client.getRoom(roomId);
   if (!room) return 0;
-  return room.getLiveTimeline().getEvents().filter((ev) => ev.getClearContent()?.body === body).length;
+  return room
+    .getLiveTimeline()
+    .getEvents()
+    .filter((ev) => ev.getClearContent()?.body === body).length;
 }
 
 // --- Main scenario ----------------------------------------------------------
@@ -198,7 +215,11 @@ try {
   const aliceSession = asSession(await register(aliceName, password, "Alice phone"));
   const bob1Session = asSession(await register(bobName, password, "Bob phone"));
   const bob2Session = asSession(await login(bobName, password, "Bob laptop"));
-  check("two accounts registered", !!aliceSession.user_id && !!bob1Session.user_id, `${aliceSession.user_id}, ${bob1Session.user_id}`);
+  check(
+    "two accounts registered",
+    !!aliceSession.user_id && !!bob1Session.user_id,
+    `${aliceSession.user_id}, ${bob1Session.user_id}`,
+  );
   check("second device signed in for Bob", bob2Session.device_id !== bob1Session.device_id);
 
   const alice = await makeClient("alice", aliceSession);
@@ -218,9 +239,16 @@ try {
   });
   await waitFor("bob sees invite", () => bob1.getRoom(roomId)?.getMyMembership() === "invite");
   await bob1.joinRoom(roomId);
-  await waitFor("alice sees bob joined", () => alice.getRoom(roomId)?.getMember(bob1Session.user_id)?.membership === "join");
+  await waitFor(
+    "alice sees bob joined",
+    () => alice.getRoom(roomId)?.getMember(bob1Session.user_id)?.membership === "join",
+  );
   await waitFor("bob2 sees room", () => bob2.getRoom(roomId)?.getMyMembership() === "join");
-  check("room is encrypted on Alice's side", await requireCrypto(alice).isEncryptionEnabledInRoom(roomId), roomId);
+  check(
+    "room is encrypted on Alice's side",
+    await requireCrypto(alice).isEncryptionEnabledInRoom(roomId),
+    roomId,
+  );
   results.roomId = roomId;
 
   // 3. Device identity: Alice looks at Bob's devices and verifies them by
@@ -231,16 +259,28 @@ try {
   const bobDeviceMap = bobDevices.get(bob1Session.user_id);
   if (!bobDeviceMap) throw new Error("no device list for Bob");
   const bobDeviceIds = [...bobDeviceMap.keys()];
-  check("Alice sees both of Bob's devices", bobDeviceIds.includes(bob1Session.device_id) && bobDeviceIds.includes(bob2Session.device_id), bobDeviceIds.join(", "));
-  const before = await aliceCrypto.getDeviceVerificationStatus(bob1Session.user_id, bob1Session.device_id);
+  check(
+    "Alice sees both of Bob's devices",
+    bobDeviceIds.includes(bob1Session.device_id) && bobDeviceIds.includes(bob2Session.device_id),
+    bobDeviceIds.join(", "),
+  );
+  const before = await aliceCrypto.getDeviceVerificationStatus(
+    bob1Session.user_id,
+    bob1Session.device_id,
+  );
   check("Bob's device starts unverified", !!before && !before.isVerified());
   for (const id of bobDeviceIds) {
     const dev = bobDeviceMap.get(id);
     if (!dev) continue;
-    console.log(`  Bob device ${id} (${dev.displayName ?? "?"}) ed25519=${dev.getFingerprint()?.slice(0, 16)}…`);
+    console.log(
+      `  Bob device ${id} (${dev.displayName ?? "?"}) ed25519=${dev.getFingerprint()?.slice(0, 16)}…`,
+    );
     await aliceCrypto.setDeviceVerified(bob1Session.user_id, id, true);
   }
-  const after = await aliceCrypto.getDeviceVerificationStatus(bob1Session.user_id, bob1Session.device_id);
+  const after = await aliceCrypto.getDeviceVerificationStatus(
+    bob1Session.user_id,
+    bob1Session.device_id,
+  );
   check("Alice marked Bob's device verified", after?.isVerified() === true);
 
   // 4. Alice sends an encrypted message; both of Bob's devices decrypt it.
@@ -248,41 +288,91 @@ try {
   const sent1 = await alice.sendMessage(roomId, { msgtype: sdk.MsgType.Text, body: MESSAGE_1 });
   results.eventIds = { message1: sent1.event_id };
   const eventIds = results.eventIds;
-  const aliceView = await waitFor("alice's own event echoed", () => requireRoom(alice, roomId).findEventById(sent1.event_id));
-  check("sender's wire event type is m.room.encrypted", aliceView.getWireType() === "m.room.encrypted", sent1.event_id);
+  const aliceView = await waitFor("alice's own event echoed", () =>
+    requireRoom(alice, roomId).findEventById(sent1.event_id),
+  );
+  check(
+    "sender's wire event type is m.room.encrypted",
+    aliceView.getWireType() === "m.room.encrypted",
+    sent1.event_id,
+  );
   const wire = aliceView.getWireContent();
-  check("wire content has ciphertext and no body", typeof wire.ciphertext === "string" && wire.body === undefined, `algorithm=${wire.algorithm}`);
+  check(
+    "wire content has ciphertext and no body",
+    typeof wire.ciphertext === "string" && wire.body === undefined,
+    `algorithm=${wire.algorithm}`,
+  );
   check("wire content does not contain the plaintext", !JSON.stringify(wire).includes(NONCE));
 
-  const bob1Msg = await waitFor("bob1 decrypts message 1", () => findDecryptedMessage(bob1, roomId, MESSAGE_1));
+  const bob1Msg = await waitFor("bob1 decrypts message 1", () =>
+    findDecryptedMessage(bob1, roomId, MESSAGE_1),
+  );
   check("Bob device 1 decrypted message 1", bob1Msg.getClearContent()?.body === MESSAGE_1);
-  const bob2Msg = await waitFor("bob2 decrypts message 1", () => findDecryptedMessage(bob2, roomId, MESSAGE_1));
+  const bob2Msg = await waitFor("bob2 decrypts message 1", () =>
+    findDecryptedMessage(bob2, roomId, MESSAGE_1),
+  );
   check("Bob device 2 decrypted message 1", bob2Msg.getClearContent()?.body === MESSAGE_1);
-  check("decrypted event is flagged encrypted and verified sender", bob1Msg.isEncrypted() && bob1Msg.getSender() === aliceSession.user_id);
+  check(
+    "decrypted event is flagged encrypted and verified sender",
+    bob1Msg.isEncrypted() && bob1Msg.getSender() === aliceSession.user_id,
+  );
 
   // 5. Network interruption: Bob's laptop goes offline, Alice sends, laptop
   //    reconnects and catches up exactly once.
-  console.log("\n5. Network interruption: Bob's laptop loses connectivity, Alice sends, laptop reconnects");
+  console.log(
+    "\n5. Network interruption: Bob's laptop loses connectivity, Alice sends, laptop reconnects",
+  );
   const bob2Net = netStates.get(bob2);
   if (!bob2Net) throw new Error("no net state for bob2");
   /** @type {string[]} */
   const syncStates = [];
-  bob2.on(sdk.ClientEvent.Sync, (state) => { if (syncStates[syncStates.length - 1] !== state) syncStates.push(state); });
+  bob2.on(sdk.ClientEvent.Sync, (state) => {
+    if (syncStates[syncStates.length - 1] !== state) syncStates.push(state);
+  });
   bob2Net.offline = true;
-  await waitFor("bob2 sync loop notices the outage", () => ["ERROR", "RECONNECTING"].includes(String(bob2.getSyncState())), 30_000);
-  check("client reports connection loss (sync state ERROR/RECONNECTING)", true, `state=${bob2.getSyncState()} failedRequests=${bob2Net.failed}`);
+  await waitFor(
+    "bob2 sync loop notices the outage",
+    () => ["ERROR", "RECONNECTING"].includes(String(bob2.getSyncState())),
+    30_000,
+  );
+  check(
+    "client reports connection loss (sync state ERROR/RECONNECTING)",
+    true,
+    `state=${bob2.getSyncState()} failedRequests=${bob2Net.failed}`,
+  );
   const sent2 = await alice.sendMessage(roomId, { msgtype: sdk.MsgType.Text, body: MESSAGE_2 });
   eventIds.message2 = sent2.event_id;
-  await waitFor("bob1 decrypts message 2 while bob2 is offline", () => findDecryptedMessage(bob1, roomId, MESSAGE_2));
+  await waitFor("bob1 decrypts message 2 while bob2 is offline", () =>
+    findDecryptedMessage(bob1, roomId, MESSAGE_2),
+  );
   await sleep(3000);
-  check("offline device has not seen message 2 yet", countMessages(bob2, roomId, MESSAGE_2) === 0, `offline for 3s, failed requests so far=${bob2Net.failed}`);
+  check(
+    "offline device has not seen message 2 yet",
+    countMessages(bob2, roomId, MESSAGE_2) === 0,
+    `offline for 3s, failed requests so far=${bob2Net.failed}`,
+  );
   bob2Net.offline = false;
-  await waitFor("bob2 decrypts message 2 after reconnect", () => findDecryptedMessage(bob2, roomId, MESSAGE_2), 120_000);
+  await waitFor(
+    "bob2 decrypts message 2 after reconnect",
+    () => findDecryptedMessage(bob2, roomId, MESSAGE_2),
+    120_000,
+  );
   await sleep(2000); // give any duplicate delivery a chance to show up
-  check("reconnected device received message 2 exactly once", countMessages(bob2, roomId, MESSAGE_2) === 1, `count=${countMessages(bob2, roomId, MESSAGE_2)}`);
+  check(
+    "reconnected device received message 2 exactly once",
+    countMessages(bob2, roomId, MESSAGE_2) === 1,
+    `count=${countMessages(bob2, roomId, MESSAGE_2)}`,
+  );
   check("device 1 also has message 2 exactly once", countMessages(bob1, roomId, MESSAGE_2) === 1);
-  check("sync state recovered to SYNCING after the outage", bob2.getSyncState() === "SYNCING", `transitions: ${syncStates.join(" → ")}`);
-  check("message 1 still readable after reconnect (keys retained)", countMessages(bob2, roomId, MESSAGE_1) === 1);
+  check(
+    "sync state recovered to SYNCING after the outage",
+    bob2.getSyncState() === "SYNCING",
+    `transitions: ${syncStates.join(" → ")}`,
+  );
+  check(
+    "message 1 still readable after reconnect (keys retained)",
+    countMessages(bob2, roomId, MESSAGE_1) === 1,
+  );
 
   // 6. Idempotent retry: the same transaction ID must not create a second event.
   console.log("\n6. Retrying a send with the same transaction ID");
@@ -291,7 +381,9 @@ try {
   const content = { msgtype: sdk.MsgType.Text, body: MESSAGE_3 };
   const first = await alice.sendMessage(roomId, content, txnId);
   eventIds.message3 = first.event_id;
-  const firstEv = await waitFor("first send echoed", () => requireRoom(alice, roomId).findEventById(first.event_id));
+  const firstEv = await waitFor("first send echoed", () =>
+    requireRoom(alice, roomId).findEventById(first.event_id),
+  );
   // (a) client-side guard: the SDK refuses to queue a second event under a known txnId
   let clientGuard = null;
   try {
@@ -299,15 +391,29 @@ try {
   } catch (err) {
     clientGuard = errMsg(err);
   }
-  check("client refuses to queue a second send with a known txnId", clientGuard !== null, clientGuard ?? "NO ERROR THROWN");
+  check(
+    "client refuses to queue a second send with a known txnId",
+    clientGuard !== null,
+    clientGuard ?? "NO ERROR THROWN",
+  );
   // (b) server-side idempotency: replay the exact HTTP request a client would retry after
   //     a timeout (same txnId, same encrypted payload) and expect the same event_id back
   const sendPath = `/rooms/${encodeURIComponent(roomId)}/send/m.room.encrypted/${encodeURIComponent(txnId)}`;
-  const retry = /** @type {{ event_id: string }} */ (await alice.http.authedRequest(sdk.Method.Put, sendPath, undefined, firstEv.getWireContent()));
-  check("server returns the same event_id for a replayed txnId", first.event_id === retry.event_id, `${first.event_id} === ${retry.event_id}`);
+  const retry = /** @type {{ event_id: string }} */ (
+    await alice.http.authedRequest(sdk.Method.Put, sendPath, undefined, firstEv.getWireContent())
+  );
+  check(
+    "server returns the same event_id for a replayed txnId",
+    first.event_id === retry.event_id,
+    `${first.event_id} === ${retry.event_id}`,
+  );
   await waitFor("bob1 decrypts message 3", () => findDecryptedMessage(bob1, roomId, MESSAGE_3));
   await sleep(1500);
-  check("recipient sees retried message exactly once", countMessages(bob1, roomId, MESSAGE_3) === 1, `count=${countMessages(bob1, roomId, MESSAGE_3)}`);
+  check(
+    "recipient sees retried message exactly once",
+    countMessages(bob1, roomId, MESSAGE_3) === 1,
+    `count=${countMessages(bob1, roomId, MESSAGE_3)}`,
+  );
 
   // 7. A device enrolled after the fact has no key and cannot decrypt history.
   console.log("\n7. Late device cannot decrypt earlier messages");
@@ -315,20 +421,37 @@ try {
   const bob3 = await makeClient("bob3 ", bob3Session);
   clients.push(bob3);
   const bob3Room = await waitFor("bob3 sees room", () => bob3.getRoom(roomId));
-  await waitFor("bob3 has message 1 event in timeline", () => bob3Room.findEventById(sent1.event_id));
+  await waitFor("bob3 has message 1 event in timeline", () =>
+    bob3Room.findEventById(sent1.event_id),
+  );
   await sleep(3000); // allow any decryption attempt or key request to settle
   const bob3Ev = await waitFor("bob3 event lookup", () => bob3Room.findEventById(sent1.event_id));
-  check("late device cannot decrypt message 1", bob3Ev.isDecryptionFailure() || bob3Ev.getClearContent() === null, bob3Ev.isDecryptionFailure() ? `reason=${bob3Ev.decryptionFailureReason ?? "unknown"}` : "");
-  check("late device sees ciphertext, not plaintext", !JSON.stringify(bob3Ev.getWireContent()).includes(NONCE));
+  check(
+    "late device cannot decrypt message 1",
+    bob3Ev.isDecryptionFailure() || bob3Ev.getClearContent() === null,
+    bob3Ev.isDecryptionFailure() ? `reason=${bob3Ev.decryptionFailureReason ?? "unknown"}` : "",
+  );
+  check(
+    "late device sees ciphertext, not plaintext",
+    !JSON.stringify(bob3Ev.getWireContent()).includes(NONCE),
+  );
 
   // 8. Sign out: device deletion makes the token unusable.
   console.log("\n8. Logout revokes the device token");
   const bob3Token = bob3Session.access_token;
   bob3.stopClient();
   await bob3.logout(true);
-  const probe = sdk.createClient({ baseUrl: HOMESERVER_URL, userId: bob3Session.user_id, accessToken: bob3Token });
+  const probe = sdk.createClient({
+    baseUrl: HOMESERVER_URL,
+    userId: bob3Session.user_id,
+    accessToken: bob3Token,
+  });
   let revoked = false;
-  try { await probe.whoami(); } catch (err) { revoked = errCode(err) === "M_UNKNOWN_TOKEN"; }
+  try {
+    await probe.whoami();
+  } catch (err) {
+    revoked = errCode(err) === "M_UNKNOWN_TOKEN";
+  }
   check("logged-out device's token is rejected", revoked);
 
   // 9. No silent plaintext fallback.
@@ -352,7 +475,12 @@ try {
   const beforeCounts = await serverMessageEventCount();
 
   // (a) crypto-less client using Bob's first session
-  const noCrypto = sdk.createClient({ baseUrl: HOMESERVER_URL, userId: bob1Session.user_id, accessToken: bob1Session.access_token, deviceId: bob1Session.device_id });
+  const noCrypto = sdk.createClient({
+    baseUrl: HOMESERVER_URL,
+    userId: bob1Session.user_id,
+    accessToken: bob1Session.access_token,
+    deviceId: bob1Session.device_id,
+  });
   await noCrypto.startClient({ initialSyncLimit: 10 });
   clients.push(noCrypto);
   await waitFor("crypto-less client syncs the room", () => noCrypto.getRoom(roomId));
@@ -362,12 +490,18 @@ try {
   } catch (err) {
     refusedA = errMsg(err);
   }
-  check("client without crypto refuses to send into encrypted room", refusedA !== null && /encryption/i.test(refusedA), refusedA ?? "NO ERROR THROWN");
+  check(
+    "client without crypto refuses to send into encrypted room",
+    refusedA !== null && /encryption/i.test(refusedA),
+    refusedA ?? "NO ERROR THROWN",
+  );
 
   // (b) encryption throws inside the crypto backend
   const cryptoApi = /** @type {any} */ (alice.getCrypto());
   const realEncrypt = cryptoApi.encryptEvent.bind(cryptoApi);
-  cryptoApi.encryptEvent = async () => { throw new Error("simulated encryption failure (PoC)"); };
+  cryptoApi.encryptEvent = async () => {
+    throw new Error("simulated encryption failure (PoC)");
+  };
   let refusedB = null;
   try {
     await alice.sendMessage(roomId, { msgtype: sdk.MsgType.Text, body: PLAIN_B });
@@ -377,31 +511,64 @@ try {
     cryptoApi.encryptEvent = realEncrypt;
   }
   check("send rejects when encryption fails", refusedB !== null, refusedB ?? "NO ERROR THROWN");
-  const failedLocal = requireRoom(alice, roomId).getLiveTimeline().getEvents().find((e) => e.getContent()?.body === PLAIN_B);
-  check("failed message stays local with status not_sent", !!failedLocal && failedLocal.status === sdk.EventStatus.NOT_SENT, failedLocal ? `local status=${failedLocal.status}` : "not in local timeline");
+  const failedLocal = requireRoom(alice, roomId)
+    .getLiveTimeline()
+    .getEvents()
+    .find((e) => e.getContent()?.body === PLAIN_B);
+  check(
+    "failed message stays local with status not_sent",
+    !!failedLocal && failedLocal.status === sdk.EventStatus.NOT_SENT,
+    failedLocal ? `local status=${failedLocal.status}` : "not in local timeline",
+  );
   if (failedLocal) alice.cancelPendingEvent(failedLocal);
 
   await sleep(1500);
   const afterCounts = await serverMessageEventCount();
-  check("server has no plaintext m.room.message events", afterCounts.plain === 0, `plain=${afterCounts.plain}`);
+  check(
+    "server has no plaintext m.room.message events",
+    afterCounts.plain === 0,
+    `plain=${afterCounts.plain}`,
+  );
   check("server never received the forbidden strings", afterCounts.leaked === 0);
-  check("server event count unchanged by the failed sends", afterCounts.total === beforeCounts.total, `${beforeCounts.total} → ${afterCounts.total}`);
+  check(
+    "server event count unchanged by the failed sends",
+    afterCounts.total === beforeCounts.total,
+    `${beforeCounts.total} → ${afterCounts.total}`,
+  );
   // After restoring crypto, Alice can still send normally.
-  const sent4 = await alice.sendMessage(roomId, { msgtype: sdk.MsgType.Text, body: `Recovered after failure. ${NONCE}-4` });
+  const sent4 = await alice.sendMessage(roomId, {
+    msgtype: sdk.MsgType.Text,
+    body: `Recovered after failure. ${NONCE}-4`,
+  });
   eventIds.message4 = sent4.event_id;
-  await waitFor("bob1 decrypts message 4", () => findDecryptedMessage(bob1, roomId, `Recovered after failure. ${NONCE}-4`));
+  await waitFor("bob1 decrypts message 4", () =>
+    findDecryptedMessage(bob1, roomId, `Recovered after failure. ${NONCE}-4`),
+  );
   check("encryption works again after the simulated failure", true, sent4.event_id);
 
   results.users = { alice: aliceSession.user_id, bob: bob1Session.user_id };
-  results.devices = { alice: aliceSession.device_id, bob1: bob1Session.device_id, bob2: bob2Session.device_id, bob3: bob3Session.device_id };
+  results.devices = {
+    alice: aliceSession.device_id,
+    bob1: bob1Session.device_id,
+    bob2: bob2Session.device_id,
+    bob3: bob3Session.device_id,
+  };
 } catch (err) {
   results.failed = true;
   results.error = errMsg(err);
   console.error("\nERROR:", err);
 } finally {
-  for (const c of clients) { try { c.stopClient(); } catch { /* already stopped */ } }
+  for (const c of clients) {
+    try {
+      c.stopClient();
+    } catch {
+      /* already stopped */
+    }
+  }
   writeFileSync(new URL("../last-run.json", import.meta.url), JSON.stringify(results, null, 2));
   const passed = results.checks.filter((c) => c.ok).length;
-  console.log(`\n== ${passed}/${results.checks.length} checks passed${results.error ? " — RUN ABORTED BY ERROR (see above)" : ""}. Details written to last-run.json`);
+  console.log(
+    `\n== ${passed}/${results.checks.length} checks passed${results.error ? " — RUN ABORTED BY ERROR (see above)" : ""}. Details written to last-run.json`,
+  );
   process.exit(results.failed ? 1 : 0);
 }

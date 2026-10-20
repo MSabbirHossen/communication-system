@@ -14,25 +14,44 @@ describe("parseArgs", () => {
 });
 
 describe("classifyStoredEvent", () => {
-  const megolm = { algorithm: "m.megolm.v1.aes-sha2", ciphertext: "AwgAEhA...", session_id: "s", sender_key: "k", device_id: "D" };
+  const megolm = {
+    algorithm: "m.megolm.v1.aes-sha2",
+    ciphertext: "AwgAEhA...",
+    session_id: "s",
+    sender_key: "k",
+    device_id: "D",
+  };
 
   it("accepts a well-formed encrypted event", () => {
     expect(classifyStoredEvent({ type: "m.room.encrypted", content: megolm })).toBe("encrypted-ok");
   });
   it("flags an unencrypted message", () => {
-    expect(classifyStoredEvent({ type: "m.room.message", content: { msgtype: "m.text", body: "hi" } })).toBe("plaintext-message");
+    expect(
+      classifyStoredEvent({ type: "m.room.message", content: { msgtype: "m.text", body: "hi" } }),
+    ).toBe("plaintext-message");
   });
   it("flags an encrypted event that leaks a body", () => {
-    expect(classifyStoredEvent({ type: "m.room.encrypted", content: { ...megolm, body: "hi" } })).toBe("encrypted-leak");
+    expect(
+      classifyStoredEvent({ type: "m.room.encrypted", content: { ...megolm, body: "hi" } }),
+    ).toBe("encrypted-leak");
   });
   it("flags an encrypted event with the wrong algorithm", () => {
-    expect(classifyStoredEvent({ type: "m.room.encrypted", content: { ...megolm, algorithm: "m.olm.v1.curve25519-aes-sha2" } })).toBe("encrypted-leak");
+    expect(
+      classifyStoredEvent({
+        type: "m.room.encrypted",
+        content: { ...megolm, algorithm: "m.olm.v1.curve25519-aes-sha2" },
+      }),
+    ).toBe("encrypted-leak");
   });
   it("flags an encrypted event with empty ciphertext", () => {
-    expect(classifyStoredEvent({ type: "m.room.encrypted", content: { ...megolm, ciphertext: "" } })).toBe("encrypted-leak");
+    expect(
+      classifyStoredEvent({ type: "m.room.encrypted", content: { ...megolm, ciphertext: "" } }),
+    ).toBe("encrypted-leak");
   });
   it("classifies state events as other", () => {
-    expect(classifyStoredEvent({ type: "m.room.member", content: { membership: "join" } })).toBe("other");
+    expect(classifyStoredEvent({ type: "m.room.member", content: { membership: "join" } })).toBe(
+      "other",
+    );
     expect(classifyStoredEvent({})).toBe("other");
   });
 });

@@ -1,0 +1,7 @@
+node_modules
+dist
+build
+pnpm-lock.yaml
+poc/matrix-e2ee/evidence
+infrastructure/synapse/data
+*.md

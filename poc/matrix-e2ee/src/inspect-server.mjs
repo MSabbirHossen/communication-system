@@ -39,11 +39,13 @@ function check(name, ok, detail = "") {
 console.log(`\n== Inspecting ${args.db} for room ${roomId}\n`);
 const db = new DatabaseSync(args.db, { readOnly: true });
 
-const rows = /** @type {{ event_id: string, type: string, json: string }[]} */ (db
-  .prepare(
-    `SELECT e.event_id, e.type, ej.json FROM events e JOIN event_json ej ON e.event_id = ej.event_id WHERE e.room_id = ? ORDER BY e.stream_ordering`,
-  )
-  .all(roomId));
+const rows = /** @type {{ event_id: string, type: string, json: string }[]} */ (
+  db
+    .prepare(
+      `SELECT e.event_id, e.type, ej.json FROM events e JOIN event_json ej ON e.event_id = ej.event_id WHERE e.room_id = ? ORDER BY e.stream_ordering`,
+    )
+    .all(roomId)
+);
 
 check("room events found in server DB", rows.length > 0, `${rows.length} events`);
 
@@ -59,7 +61,11 @@ for (const row of rows) {
 console.log("  event types:", JSON.stringify(typeCounts));
 
 check("no m.room.message (plaintext) events stored", classes["plaintext-message"] === 0);
-check("encrypted events present", classes["encrypted-ok"] >= 4, `${classes["encrypted-ok"]} m.room.encrypted events`);
+check(
+  "encrypted events present",
+  classes["encrypted-ok"] >= 4,
+  `${classes["encrypted-ok"]} m.room.encrypted events`,
+);
 check("every encrypted event is megolm ciphertext with no body", classes["encrypted-leak"] === 0);
 check("no stored event JSON contains a forbidden plaintext", jsonLeaks === 0);
 
@@ -76,23 +82,43 @@ if (sample) {
 // to-device messages, device keys tables, or anything else).
 const dbBytes = readFileSync(args.db);
 const dbLeak = forbidden.find((f) => containsPlaintext(dbBytes, f));
-check("forbidden plaintexts absent from the entire DB file", !dbLeak, `${(dbBytes.length / 1024).toFixed(0)} KiB scanned, ${forbidden.length} strings`);
+check(
+  "forbidden plaintexts absent from the entire DB file",
+  !dbLeak,
+  `${(dbBytes.length / 1024).toFixed(0)} KiB scanned, ${forbidden.length} strings`,
+);
 
 // Device keys table should hold only public key material (no private keys).
-const keyRows = /** @type {{ key_json: string }[]} */ (db.prepare(`SELECT key_json FROM e2e_device_keys_json WHERE user_id IN (?, ?)`).all(run.users.alice, run.users.bob));
+const keyRows = /** @type {{ key_json: string }[]} */ (
+  db
+    .prepare(`SELECT key_json FROM e2e_device_keys_json WHERE user_id IN (?, ?)`)
+    .all(run.users.alice, run.users.bob)
+);
 const privateMaterial = keyRows.some((r) => /private|secret|seed/i.test(r.key_json));
-check("device key table holds only public keys", keyRows.length >= 3 && !privateMaterial, `${keyRows.length} device key records`);
+check(
+  "device key table holds only public keys",
+  keyRows.length >= 3 && !privateMaterial,
+  `${keyRows.length} device key records`,
+);
 const firstKey = keyRows[0];
 if (firstKey) console.log(`  sample device key record: ${firstKey.key_json.slice(0, 160)}…`);
 
 if (args.log && existsSync(args.log)) {
   const log = readFileSync(args.log, "utf8");
   const logLeak = forbidden.find((f) => containsPlaintext(log, f));
-  check("forbidden plaintexts absent from homeserver log", !logLeak, `${(log.length / 1024).toFixed(0)} KiB scanned`);
+  check(
+    "forbidden plaintexts absent from homeserver log",
+    !logLeak,
+    `${(log.length / 1024).toFixed(0)} KiB scanned`,
+  );
 } else {
   console.log("  (no --log given or file missing; log scan skipped)");
 }
 
 db.close();
-console.log(failed ? "\n== Server inspection FAILED" : "\n== Server inspection passed: the server holds ciphertext only");
+console.log(
+  failed
+    ? "\n== Server inspection FAILED"
+    : "\n== Server inspection passed: the server holds ciphertext only",
+);
 process.exit(failed ? 1 : 0);

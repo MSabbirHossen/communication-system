@@ -10,18 +10,33 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run",
+    "build:packages": "pnpm --filter \"./packages/**\" build",
+    "typecheck": "pnpm build:packages && pnpm -r --if-present typecheck && tsc -p tsconfig.poc.json",
+    "test": "pnpm build:packages && vitest run",
     "build": "pnpm -r --if-present build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dev": "pnpm build:packages && concurrently -n api,web -c blue,green \"pnpm --filter @cs/api dev\" \"pnpm --filter @cs/web dev\"",
+    "dev:env": "docker compose -f infrastructure/docker-compose.yml up -d",
+    "dev:env:init": "node infrastructure/synapse/init.mjs",
+    "dev:env:down": "docker compose -f infrastructure/docker-compose.yml down",
+    "dev:env:reset": "node infrastructure/synapse/init.mjs --reset",
     "poc": "pnpm --filter poc-matrix-e2ee poc",
     "poc:inspect": "pnpm --filter poc-matrix-e2ee inspect"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.5",
+    "concurrently": "10.0.6",
     "eslint": "^10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "7.1.1",
     "globals": "^17.13.0",
-    "typescript": "^7.0.2",
+    "prettier": "3.9.10",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
     "vitest": "^5.0.5"
   }
 }
