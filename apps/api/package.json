@@ -1,0 +1,32 @@
+{
+  "name": "@cs/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application API (Express + MongoDB) for app-owned data only. Messaging is owned by Matrix (ADR-0001).",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "start": "node --env-file-if-exists=.env dist/index.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cs/logger": "workspace:*",
+    "@cs/shared-types": "workspace:*",
+    "@cs/validation": "workspace:*",
+    "cors": "2.8.6",
+    "express": "5.3.0",
+    "express-rate-limit": "8.7.1",
+    "helmet": "8.3.0",
+    "mongodb": "7.7.0"
+  },
+  "devDependencies": {
+    "@types/cors": "2.8.19",
+    "@types/express": "5.0.6",
+    "@types/supertest": "7.2.1",
+    "supertest": "7.3.1",
+    "tsx": "4.23.15"
+  }
+}
