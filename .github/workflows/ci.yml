@@ -63,11 +63,15 @@ jobs:
           set -euxo pipefail
           mkdir -p "$SYNAPSE_DIR"
           chmod 777 "$SYNAPSE_DIR"
+          # UID/GID make the image write its files as the runner user, so the
+          # overrides below can be appended and the DB read afterwards.
           docker run --rm \
             -v "$SYNAPSE_DIR:/data" \
             -e SYNAPSE_SERVER_NAME=localhost \
             -e SYNAPSE_REPORT_STATS=no \
-            "$SYNAPSE_IMAGE" generate 2>&1 | tee "$RUNNER_TEMP/generate.log"
+            -e UID="$(id -u)" -e GID="$(id -g)" \
+            "$SYNAPSE_IMAGE" generate 2>&1 | tee "$RUNNER_TEMP/generate.log" \
+            || { tail -n 8 "$RUNNER_TEMP/generate.log" | while IFS= read -r l; do echo "::error title=synapse generate::$l"; done; exit 1; }
           ls -la "$SYNAPSE_DIR"
           # Dev-only overrides: open registration without verification so the
           # PoC can create throwaway accounts. Never use these in production.
@@ -94,6 +98,7 @@ jobs:
           docker run -d --name synapse \
             -v "$SYNAPSE_DIR:/data" \
             -p 8008:8008 \
+            -e UID="$(id -u)" -e GID="$(id -g)" \
             "$SYNAPSE_IMAGE"
           for i in $(seq 1 60); do
             if curl -fsS http://localhost:8008/_matrix/client/versions >/dev/null; then echo "Synapse ready after ${i}x2s"; break; fi
@@ -117,6 +122,28 @@ jobs:
           docker stop synapse
           sudo chmod -R a+r "$SYNAPSE_DIR"
           pnpm poc:inspect -- --db "$SYNAPSE_DIR/homeserver.db" --log "$SYNAPSE_DIR/homeserver.log" 2>&1 | tee "$RUNNER_TEMP/inspect.log"
+
+      - name: Publish result as annotations (readable without sign-in)
+        if: always()
+        run: |
+          # GitHub shows logs and summaries only to signed-in users; annotations
+          # are public via the checks API. Limit: 10 notices + 10 errors per step.
+          echo "::notice title=synapse::image=$SYNAPSE_IMAGE digest=$(cat "$RUNNER_TEMP/image-digest.txt" 2>/dev/null || echo none) server=$(cat "$RUNNER_TEMP/server-version.json" 2>/dev/null || echo 'not started')"
+          if [ -f "$RUNNER_TEMP/poc.log" ]; then
+            echo "::notice title=poc::$(grep -E '^==' "$RUNNER_TEMP/poc.log" | tail -n 1)"
+            echo "::notice title=poc::PASS=$(grep -c '^PASS' "$RUNNER_TEMP/poc.log") FAIL=$(grep -c '^FAIL' "$RUNNER_TEMP/poc.log")"
+            grep -E '^(FAIL|ERROR)' "$RUNNER_TEMP/poc.log" | head -n 8 | while IFS= read -r l; do echo "::error title=poc::$l"; done
+          else
+            echo "::error title=poc::PoC did not run"
+          fi
+          if [ -f "$RUNNER_TEMP/inspect.log" ]; then
+            echo "::notice title=inspect::$(grep -E '^==' "$RUNNER_TEMP/inspect.log" | tail -n 1)"
+            echo "::notice title=inspect::PASS=$(grep -c '^PASS' "$RUNNER_TEMP/inspect.log") FAIL=$(grep -c '^FAIL' "$RUNNER_TEMP/inspect.log")"
+            grep -E '^FAIL' "$RUNNER_TEMP/inspect.log" | head -n 8 | while IFS= read -r l; do echo "::error title=inspect::$l"; done
+          fi
+          if docker ps -a --format '{{.Names}}' | grep -q '^synapse$'; then
+            docker logs synapse 2>&1 | grep -iE 'error|traceback|exception' | tail -n 5 | while IFS= read -r l; do echo "::warning title=synapse log::$l"; done
+          fi
 
       - name: Write job summary
         if: always()
