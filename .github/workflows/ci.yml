@@ -124,7 +124,10 @@ jobs:
         run: |
           set -o pipefail
           docker stop synapse
+          # The image logs to stdout; capture it so the inspector can scan it for plaintext.
+          docker logs synapse > "$RUNNER_TEMP/synapse-container.log" 2>&1
           sudo chmod -R a+r "$SYNAPSE_DIR"
+          cp "$RUNNER_TEMP/synapse-container.log" "$SYNAPSE_DIR/homeserver.log"
           pnpm poc:inspect -- --db "$SYNAPSE_DIR/homeserver.db" --log "$SYNAPSE_DIR/homeserver.log" 2>&1 | tee "$RUNNER_TEMP/inspect.log"
 
       - name: Publish result as annotations (readable without sign-in)
