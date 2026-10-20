@@ -1,6 +1,6 @@
 # ADR-0001 — Messaging architecture: Matrix versus a custom backend
 
-**Status:** Proposed — awaiting project-owner approval (Phase 0 exit gate)  
+**Status:** **Accepted with conditions** — approved by the project owner on 2026-10-20 (Phase 0 exit gate); conditions in §6  
 **Date:** 2026-10-20  
 **Deciders:** Project owner  
 **Inputs:** `docs/PRD.md` §12, §17; `docs/TRD.md` §2, §4, §6, §19; `docs/IMPLEMENTATION_PLAN.md` Phase 0; `docs/BACKEND_SCHEMA.md`; Phase 0 proof of concept in `poc/matrix-e2ee/` (`RESULTS.md`, `evidence/`).
@@ -152,8 +152,9 @@ Findings from official sources, fetched 2026-10-20:
 
 ## 6. Conditions on this decision
 
-- **C1 — Owner approval.** This ADR is Proposed until the project owner approves it and the Phase 0 exit gate.
-- **C2 — Mobile device spike before Phase 5.** Validate the proposed Capacitor wrapper on real devices (WKWebView on iOS, Android System WebView: `initRustCrypto()`, persistent IndexedDB crypto store, register, encrypt, decrypt against the same Synapse, app restart, background/foreground). If it fails, fall back to native Kotlin/Swift on matrix-rust-sdk (MOBILE_SPIKE.md option C) or defer mobile with an approved PRD scope change (option E); the Matrix decision stands either way.
+- **C1 — Owner approval.** Granted 2026-10-20 with the conditions below; the ADR is Accepted.
+- **C2 — Mobile is a Capacitor wrapper, provisionally.** The mobile apps wrap the web client with Capacitor (MOBILE_SPIKE.md option D). This is provisional until the Phase 5 spike passes on **real devices**, Android (System WebView) and iOS (WKWebView), covering at minimum: wasm crypto (`initRustCrypto()`, encrypt and decrypt against the project homeserver), key storage (persistent crypto store across app restart; recovery key and session token in native secure storage), and session restore (app restart, background/foreground, sign-in survives). **Fallback if the spike fails:** native Kotlin and Swift apps on matrix-rust-sdk (option C). The Matrix decision stands either way.
+- **C2a — Privacy disclosure.** The WebView key-storage limitation (keys live in the WebView's IndexedDB inside the app sandbox, without hardware-backed key protection; threat model TM-23) must appear in the user-facing privacy disclosure before any mobile beta.
 - **C3 — Threat model maintained.** `docs/security/THREAT_MODEL.md` is updated whenever the SDK, server, storage or recovery design changes.
 - **C4 — No duplicate messaging state.** MongoDB collections are limited to `docs/BACKEND_SCHEMA.md`; any new collection touching messaging requires a new ADR.
 - **C5 — Server licence review.** If the project ever modifies Synapse, review AGPL implications first; Continuwuity is the Apache-2.0 fallback.

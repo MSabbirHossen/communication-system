@@ -193,7 +193,7 @@ Use the approved stack and versions recorded in the repository.
 The current proposed stack is:
 
 - Web: React, TypeScript and Vite.
-- Mobile: React Native and TypeScript, subject to SDK compatibility.
+- Mobile: Capacitor wrapper around the web client, provisional per ADR-0001 C2 (fallback native Kotlin/Swift on matrix-rust-sdk).
 - Application API: Node.js, TypeScript and Express, if required.
 - Application-owned data: MongoDB, only where justified.
 - Messaging and encryption: a supported implementation of the approved protocol.

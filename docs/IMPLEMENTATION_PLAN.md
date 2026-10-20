@@ -36,7 +36,7 @@ Build a reliable, privacy-focused messaging application with:
 | Layer | Proposed technology | Purpose |
 |---|---|---|
 | Web client | React, TypeScript, Vite | Browser application |
-| Mobile clients | React Native, TypeScript | Android and iOS |
+| Mobile clients | Capacitor wrapper around the web client (provisional, ADR-0001 C2; fallback native Kotlin/Swift on matrix-rust-sdk) | Android and iOS |
 | Messaging protocol | Matrix | Encrypted events, rooms, sync and protocol state |
 | Client encryption | Supported Matrix client SDK | Device keys, encryption and decryption |
 | Homeserver | Synapse or another compatible implementation | Matrix protocol services |
@@ -44,7 +44,7 @@ Build a reliable, privacy-focused messaging application with:
 | Application database | MongoDB | Profiles, reports and other app-owned data |
 | Media storage | Deferred; encrypted uploads only | Future media support |
 | Notifications | FCM/APNs through a suitable integration | Push notifications |
-| Testing | Vitest, React Native-compatible tests, API integration tests | Automated quality checks |
+| Testing | Vitest, browser/WebView end-to-end tests, API integration tests | Automated quality checks |
 | CI/CD | GitHub Actions | Automated checks and build validation |
 | Deployment | Managed or self-hosted services selected in Phase 0 | Hosting and operations |
 
@@ -260,13 +260,14 @@ Adjust the structure if the selected Matrix SDK requires a different build setup
 
 ### Phase 5 — Android and iOS clients
 
-**Estimated duration:** 3–4 weeks, subject to SDK compatibility
+**Estimated duration:** 3–4 weeks, subject to the device spike
 
-**Objective:** Provide mobile clients with the same core security and messaging guarantees.
+**Objective:** Provide mobile clients with the same core security and messaging guarantees, as a Capacitor wrapper around the web client (ADR-0001 C2, provisional).
 
 **Tasks**
+- Run the real-device spike first (Android System WebView and iOS WKWebView): wasm crypto, key storage, session restore. If it fails, switch to native Kotlin/Swift on matrix-rust-sdk and re-estimate.
 - Implement the mobile navigation and design system.
-- Integrate the validated Matrix SDK and secure device storage.
+- Integrate the validated Matrix SDK and secure device storage (recovery key and session token in native secure storage via a Capacitor plugin).
 - Implement authentication, device verification and encrypted messaging.
 - Add conversation lists, offline states and synchronization.
 - Integrate push notifications with privacy-preserving content.
@@ -280,7 +281,7 @@ Adjust the structure if the selected Matrix SDK requires a different build setup
 - [ ] Device verification and session revocation work as designed.
 - [ ] Push notifications do not expose message contents by default.
 - [ ] Offline and reconnection flows pass manual tests.
-- [ ] Platform-specific security limitations are documented.
+- [ ] Platform-specific security limitations are documented, including the WebView key-storage limitation in the privacy disclosure (ADR-0001 C2a).
 
 **Commit example:** `feat(mobile): implement secure cross-platform messaging`
 

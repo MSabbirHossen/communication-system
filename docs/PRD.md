@@ -519,8 +519,8 @@ The privacy policy must describe relevant metadata collection, processing, reten
 
 ## Android
 
-- React Native client using a supported cryptographic implementation.
-- Secure local key storage.
+- Capacitor-wrapped web client (Android System WebView) using the same supported cryptographic implementation as the web client, provisionally per ADR-0001 condition C2; native Kotlin on matrix-rust-sdk is the fallback if the Phase 5 device spike fails.
+- Secure local key storage, with the WebView key-storage limitation disclosed to users (ADR-0001 C2a).
 - Background and push-notification handling.
 - Network reconnection.
 - Physical-device testing.
@@ -528,8 +528,8 @@ The privacy policy must describe relevant metadata collection, processing, reten
 
 ## iOS
 
-- React Native client using a supported cryptographic implementation.
-- Platform-appropriate secure storage.
+- Capacitor-wrapped web client (WKWebView) using the same supported cryptographic implementation as the web client, provisionally per ADR-0001 condition C2; native Swift on matrix-rust-sdk is the fallback if the Phase 5 device spike fails.
+- Platform-appropriate secure storage, with the WebView key-storage limitation disclosed to users (ADR-0001 C2a).
 - Push-notification integration.
 - Background lifecycle and reconnection handling.
 - Physical-device testing.
@@ -543,18 +543,18 @@ Multi-device encrypted history synchronization will be included only when the se
 
 # 12. Proposed Technical Constraints
 
-The following are preferred technologies, subject to a documented architecture decision:
+The following are preferred technologies, subject to a documented architecture decision. ADR-0001 (Accepted 2026-10-20) resolved the messaging, mobile, authentication and database rows: Matrix with Synapse, Capacitor wrapper for mobile (provisional, condition C2), protocol-native authentication, MongoDB for application-owned data only.
 
 | Area | Preferred approach |
 |---|---|
 | Web | React, TypeScript, Vite |
-| Mobile | React Native, Expo where compatible |
+| Mobile | Capacitor wrapper around the web client (Android System WebView, iOS WKWebView), provisional per ADR-0001 C2; fallback native Kotlin/Swift on matrix-rust-sdk. React Native and Expo are not used. |
 | API | Node.js, Express, TypeScript for a custom backend |
 | Authentication | Firebase Auth or the selected protocol's supported account model |
 | Messaging | Established protocol or a carefully designed custom service |
 | Database | MongoDB for a custom backend; protocol-native storage for Matrix |
 | Real-time transport | Protocol-native APIs or Socket.IO |
-| Local storage | IndexedDB on web; SQLite or equivalent on mobile |
+| Local storage | IndexedDB on web and in the mobile WebView for SDK state; native secure storage (Keystore/Keychain) on mobile for the recovery key and session token |
 | Notifications | Firebase Cloud Messaging and Apple Push Notification service |
 | Media | Object storage for encrypted attachment data in a later release |
 | Testing | Unit, integration, cross-platform, security, and load tests |

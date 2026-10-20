@@ -80,7 +80,7 @@ The project MUST validate SDK support, encryption behavior, licensing, platform 
 | Messaging protocol | Matrix | Preferred; validate in Phase 0 |
 | Web client | React + TypeScript | Proposed |
 | Web build tooling | Vite | Proposed |
-| Mobile client | React Native + TypeScript | Proposed; validate native crypto support |
+| Mobile client | Capacitor wrapper around the web client (same SDK and wasm crypto) | Accepted provisionally (ADR-0001 C2); real-device spike in Phase 5; fallback native Kotlin/Swift on matrix-rust-sdk |
 | Encryption | Protocol-supported E2EE implementation | Mandatory |
 | Homeserver | Matrix-compatible server; evaluate Synapse | Pending spike |
 | Authentication | Protocol-native identity and sessions | Preferred |
@@ -207,7 +207,7 @@ The final browser storage and key-persistence design MUST account for the fact t
 
 ## 4.2 Mobile client
 
-The mobile client SHOULD use React Native and TypeScript, subject to successful protocol-SDK and native cryptography validation.
+The mobile client SHOULD be a Capacitor wrapper around the web client, running the same Matrix SDK and WebAssembly crypto in the platform WebView (ADR-0001, accepted provisionally under condition C2). The Phase 5 spike MUST test real Android and iOS devices for wasm crypto, key storage and session restore; if it fails, the fallback is native Kotlin and Swift clients on matrix-rust-sdk. React Native is not used.
 
 The mobile client MUST:
 
@@ -219,7 +219,7 @@ The mobile client MUST:
 - Provide a clear device/session logout and revocation flow.
 - Request only necessary platform permissions.
 
-The project MUST NOT assume that browser SDKs, native modules, or Expo-managed workflows are interchangeable. A working encryption and persistence proof of concept is required before selecting the final mobile build configuration.
+The project MUST NOT assume that a browser WebView behaves identically to a desktop browser. A working encryption and persistence proof of concept on real devices is required before the mobile build configuration is final (ADR-0001 C2), and the WebView key-storage limitation MUST appear in the user privacy disclosure (ADR-0001 C2a).
 
 ## 4.3 Server and protocol infrastructure
 
