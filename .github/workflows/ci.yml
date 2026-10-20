@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   checks:
-    name: Lint, typecheck, unit tests
+    name: Format, lint, typecheck, unit tests, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,10 +22,152 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Dependency audit (high and above; advisory until Phase 7)
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+
+  secrets-scan:
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dev-env:
+    # Proves the documented local environment: docker compose (Synapse + MongoDB),
+    # the init script, the API reaching readiness against Mongo, and the Phase 0
+    # PoC passing against the compose Synapse. Results are published as check
+    # annotations (public) because logs and summaries need a sign-in.
+    name: Dev environment (compose + API readiness + PoC)
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Validate compose file
+        run: docker compose -f infrastructure/docker-compose.yml config --quiet
+
+      - name: Initialise Synapse config (init script)
+        run: node infrastructure/synapse/init.mjs
+
+      - name: Start services
+        run: |
+          set -euo pipefail
+          docker compose -f infrastructure/docker-compose.yml up -d
+          for i in $(seq 1 60); do
+            s=$(docker inspect --format '{{.State.Health.Status}}' cs-synapse 2>/dev/null || echo starting)
+            m=$(docker inspect --format '{{.State.Health.Status}}' cs-mongo 2>/dev/null || echo starting)
+            echo "synapse=$s mongo=$m"
+            if [ "$s" = healthy ] && [ "$m" = healthy ]; then break; fi
+            sleep 3
+          done
+          docker compose -f infrastructure/docker-compose.yml ps
+          curl -fsS http://localhost:8008/_matrix/client/versions >/dev/null
+          curl -fsS http://localhost:8008/_synapse/admin/v1/server_version | tee "$RUNNER_TEMP/server-version.json"
+          echo
+          echo "::notice title=register probe::$(curl -sS -X POST -H 'content-type: application/json' -d '{}' http://localhost:8008/_matrix/client/v3/register | cut -c1-300)"
+
+      - name: Build and start the API against compose MongoDB
+        env:
+          NODE_ENV: development
+          PORT: 3000
+          MONGODB_URI: mongodb://localhost:27017
+          MONGODB_DB_NAME: communication_system_ci
+          LOG_LEVEL: info
+          CORS_ORIGINS: http://localhost:5173
+        run: |
+          set -euo pipefail
+          pnpm build:packages
+          pnpm --filter @cs/api build
+          node apps/api/dist/index.js > "$RUNNER_TEMP/api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/api.pid"
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/v1/health >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:3000/api/v1/health | tee "$RUNNER_TEMP/health.json"
+          echo
+          code=$(curl -sS -o "$RUNNER_TEMP/ready.json" -w '%{http_code}' http://localhost:3000/api/v1/ready)
+          cat "$RUNNER_TEMP/ready.json"; echo
+          echo "::notice title=api::health=$(cat "$RUNNER_TEMP/health.json") ready_http=$code ready=$(cat "$RUNNER_TEMP/ready.json")"
+          test "$code" = "200"
+          # The API log must contain request lines and no Authorization value.
+          curl -sS -H 'authorization: Bearer syt_ci_probe_token_value' http://localhost:3000/api/v1/health >/dev/null
+          sleep 1
+          grep -q '"route":"/health"' "$RUNNER_TEMP/api.log"
+          ! grep -q 'syt_ci_probe_token_value' "$RUNNER_TEMP/api.log"
+
+      - name: Run the Phase 0 PoC against the compose Synapse
+        run: |
+          set -o pipefail
+          pnpm poc 2>&1 | tee "$RUNNER_TEMP/poc.log"
+        env:
+          HOMESERVER_URL: http://localhost:8008
+
+      - name: Inspect the compose Synapse database and log for plaintext
+        run: |
+          set -o pipefail
+          docker compose -f infrastructure/docker-compose.yml stop synapse
+          docker logs cs-synapse > "$RUNNER_TEMP/synapse-container.log" 2>&1
+          sudo chmod -R a+r infrastructure/synapse/data
+          cp "$RUNNER_TEMP/synapse-container.log" infrastructure/synapse/data/homeserver.log
+          pnpm poc:inspect -- --db infrastructure/synapse/data/homeserver.db --log infrastructure/synapse/data/homeserver.log 2>&1 | tee "$RUNNER_TEMP/inspect.log"
+
+      - name: Publish results as annotations (readable without sign-in)
+        if: always()
+        run: |
+          echo "::notice title=synapse::server=$(cat "$RUNNER_TEMP/server-version.json" 2>/dev/null || echo 'not started')"
+          if [ -f "$RUNNER_TEMP/poc.log" ]; then
+            echo "::notice title=poc::$(grep -E '^==' "$RUNNER_TEMP/poc.log" | tail -n 1)"
+            echo "::notice title=poc::PASS=$(grep -c '^PASS' "$RUNNER_TEMP/poc.log") FAIL=$(grep -c '^FAIL' "$RUNNER_TEMP/poc.log")"
+            grep -E '^(FAIL|ERROR)' "$RUNNER_TEMP/poc.log" | head -n 8 | while IFS= read -r l; do echo "::error title=poc::$l"; done
+          else
+            echo "::error title=poc::PoC did not run"
+          fi
+          if [ -f "$RUNNER_TEMP/inspect.log" ]; then
+            echo "::notice title=inspect::$(grep -E '^==' "$RUNNER_TEMP/inspect.log" | tail -n 1)"
+            echo "::notice title=inspect::PASS=$(grep -c '^PASS' "$RUNNER_TEMP/inspect.log") FAIL=$(grep -c '^FAIL' "$RUNNER_TEMP/inspect.log")"
+            grep -E '^FAIL' "$RUNNER_TEMP/inspect.log" | head -n 8 | while IFS= read -r l; do echo "::error title=inspect::$l"; done
+          fi
+          if [ -f "$RUNNER_TEMP/api.log" ]; then
+            grep -iE '"level":"(error|fatal)"' "$RUNNER_TEMP/api.log" | tail -n 5 | while IFS= read -r l; do echo "::warning title=api log::$l"; done
+          fi
+
+      - name: Tear down
+        if: always()
+        run: |
+          [ -f "$RUNNER_TEMP/api.pid" ] && kill "$(cat "$RUNNER_TEMP/api.pid")" 2>/dev/null || true
+          docker compose -f infrastructure/docker-compose.yml down --volumes || true
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-env-evidence
+          path: |
+            poc/matrix-e2ee/last-run.json
+            ${{ runner.temp }}/poc.log
+            ${{ runner.temp }}/inspect.log
+            ${{ runner.temp }}/api.log
+            ${{ runner.temp }}/synapse-container.log
+          if-no-files-found: ignore
 
   poc-e2ee:
     # Phase 0 proof of concept against a *current* Synapse in Docker.

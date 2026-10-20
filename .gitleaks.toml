@@ -1,0 +1,9 @@
+# Gitleaks configuration (CI secrets-scan job). Default rules apply; the
+# allowlist excludes test fixtures that deliberately contain token-shaped
+# strings to prove the logger redacts them.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures and recorded PoC evidence (ciphertext only, no secrets)"
+paths = ['''.*\.test\.(ts|tsx|mjs)$''', '''poc/matrix-e2ee/evidence/.*''']
