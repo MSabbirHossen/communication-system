@@ -31,9 +31,14 @@ jobs:
     # Phase 0 proof of concept against a *current* Synapse in Docker.
     # Verifies that two accounts exchange an encrypted DM, that the server
     # stores ciphertext only, and that no plaintext fallback occurs.
+    # Everything a reviewer needs is written to the job summary, which is
+    # readable on the public run page without signing in.
     name: E2EE proof of concept (Synapse in Docker)
     runs-on: ubuntu-latest
     needs: checks
+    env:
+      SYNAPSE_IMAGE: ghcr.io/element-hq/synapse:latest
+      SYNAPSE_DIR: ${{ runner.temp }}/synapse
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -45,18 +50,27 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      - name: Pull Synapse image
+        run: |
+          set -euxo pipefail
+          docker version --format 'client={{.Client.Version}} server={{.Server.Version}}'
+          docker pull "$SYNAPSE_IMAGE"
+          docker image inspect "$SYNAPSE_IMAGE" --format '{{index .RepoDigests 0}}' | tee "$RUNNER_TEMP/image-digest.txt"
+
       - name: Generate Synapse config
         run: |
-          mkdir -p "$RUNNER_TEMP/synapse"
-          chmod 777 "$RUNNER_TEMP/synapse"
+          set -euxo pipefail
+          mkdir -p "$SYNAPSE_DIR"
+          chmod 777 "$SYNAPSE_DIR"
           docker run --rm \
-            -v "$RUNNER_TEMP/synapse:/data" \
+            -v "$SYNAPSE_DIR:/data" \
             -e SYNAPSE_SERVER_NAME=localhost \
             -e SYNAPSE_REPORT_STATS=no \
-            matrixdotorg/synapse:latest generate
+            "$SYNAPSE_IMAGE" generate 2>&1 | tee "$RUNNER_TEMP/generate.log"
+          ls -la "$SYNAPSE_DIR"
           # Dev-only overrides: open registration without verification so the
           # PoC can create throwaway accounts. Never use these in production.
-          cat >> "$RUNNER_TEMP/synapse/homeserver.yaml" <<'EOF'
+          cat >> "$SYNAPSE_DIR/homeserver.yaml" <<'EOF'
           enable_registration: true
           enable_registration_without_verification: true
           suppress_key_server_warning: true
@@ -71,30 +85,76 @@ jobs:
             per_second: 100
             burst_count: 100
           EOF
+          grep -nE '^(server_name|enable_registration|report_stats):' "$SYNAPSE_DIR/homeserver.yaml"
 
       - name: Start Synapse
         run: |
+          set -euxo pipefail
           docker run -d --name synapse \
-            -v "$RUNNER_TEMP/synapse:/data" \
+            -v "$SYNAPSE_DIR:/data" \
             -p 8008:8008 \
-            matrixdotorg/synapse:latest
+            "$SYNAPSE_IMAGE"
           for i in $(seq 1 60); do
-            if curl -fsS http://localhost:8008/_matrix/client/versions >/dev/null; then echo "Synapse ready"; break; fi
+            if curl -fsS http://localhost:8008/_matrix/client/versions >/dev/null; then echo "Synapse ready after ${i}x2s"; break; fi
             sleep 2
           done
-          curl -fsS http://localhost:8008/_matrix/client/versions
-          docker exec synapse python -c "import synapse; print('Synapse', synapse.__version__)"
+          curl -fsS http://localhost:8008/_matrix/client/versions | tee "$RUNNER_TEMP/versions.json"
+          echo
+          curl -fsS http://localhost:8008/_synapse/admin/v1/server_version | tee "$RUNNER_TEMP/server-version.json"
+          echo
 
       - name: Run PoC (two accounts, encrypted DM, offline catch-up, no plaintext fallback)
-        run: pnpm poc
+        run: |
+          set -o pipefail
+          pnpm poc 2>&1 | tee "$RUNNER_TEMP/poc.log"
         env:
           HOMESERVER_URL: http://localhost:8008
 
       - name: Inspect server database for plaintext
         run: |
+          set -o pipefail
           docker stop synapse
-          sudo chmod -R a+r "$RUNNER_TEMP/synapse"
-          pnpm poc:inspect -- --db "$RUNNER_TEMP/synapse/homeserver.db" --log "$RUNNER_TEMP/synapse/homeserver.log"
+          sudo chmod -R a+r "$SYNAPSE_DIR"
+          pnpm poc:inspect -- --db "$SYNAPSE_DIR/homeserver.db" --log "$SYNAPSE_DIR/homeserver.log" 2>&1 | tee "$RUNNER_TEMP/inspect.log"
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "## Phase 0 E2EE PoC against current Synapse"
+            echo
+            echo "- Image: \`$SYNAPSE_IMAGE\` → \`$(cat "$RUNNER_TEMP/image-digest.txt" 2>/dev/null || echo 'not pulled')\`"
+            echo "- Server version: \`$(cat "$RUNNER_TEMP/server-version.json" 2>/dev/null || echo 'not started')\`"
+            echo
+            echo "### PoC checks"
+            echo '```'
+            grep -E '^(PASS|FAIL|==|ERROR)' "$RUNNER_TEMP/poc.log" 2>/dev/null || echo "(no PoC output)"
+            echo '```'
+            echo "### Server inspection"
+            echo '```'
+            grep -vE 'ExperimentalWarning|trace-warnings' "$RUNNER_TEMP/inspect.log" 2>/dev/null || echo "(no inspection output)"
+            echo '```'
+            if [ -f "$RUNNER_TEMP/generate.log" ]; then
+              echo "### Synapse generate output (last 40 lines)"
+              echo '```'
+              tail -n 40 "$RUNNER_TEMP/generate.log"
+              echo '```'
+            fi
+            if docker ps -a --format '{{.Names}}' | grep -q '^synapse$'; then
+              echo "### Synapse container log (last 40 lines)"
+              echo '```'
+              docker logs synapse 2>&1 | tail -n 40
+              echo '```'
+            fi
+            if [ -f "$RUNNER_TEMP/poc.log" ]; then
+              echo "<details><summary>Full PoC log (last 150 lines)</summary>"
+              echo
+              echo '```'
+              tail -n 150 "$RUNNER_TEMP/poc.log"
+              echo '```'
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload PoC evidence
         if: always()
@@ -103,5 +163,8 @@ jobs:
           name: poc-evidence
           path: |
             poc/matrix-e2ee/last-run.json
+            ${{ runner.temp }}/poc.log
+            ${{ runner.temp }}/inspect.log
+            ${{ runner.temp }}/generate.log
             ${{ runner.temp }}/synapse/homeserver.log
           if-no-files-found: ignore
