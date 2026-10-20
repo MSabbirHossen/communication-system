@@ -75,6 +75,8 @@ jobs:
           ls -la "$SYNAPSE_DIR"
           # Dev-only overrides: open registration without verification so the
           # PoC can create throwaway accounts. Never use these in production.
+          # The generated file has no trailing newline, so start on a fresh line.
+          printf '\n' >> "$SYNAPSE_DIR/homeserver.yaml"
           cat >> "$SYNAPSE_DIR/homeserver.yaml" <<'EOF'
           enable_registration: true
           enable_registration_without_verification: true
@@ -108,12 +110,8 @@ jobs:
           echo
           curl -fsS http://localhost:8008/_synapse/admin/v1/server_version | tee "$RUNNER_TEMP/server-version.json"
           echo
-          # Diagnostics as public annotations: what config does the server actually see?
-          echo "::notice title=config on host::$(grep -nE 'registration' "$SYNAPSE_DIR/homeserver.yaml" | tr '\n' ' ' | cut -c1-400)"
-          echo "::notice title=config in container::$(docker exec synapse sh -c 'grep -nE registration /data/homeserver.yaml' | tr '\n' ' ' | cut -c1-400)"
-          echo "::notice title=container cmd::$(docker inspect synapse --format '{{json .Config.Cmd}} {{json .Config.Entrypoint}} {{json .Mounts}}' | cut -c1-400)"
-          echo "::notice title=container env::$(docker inspect synapse --format '{{json .Config.Env}}' | cut -c1-400)"
-          echo "::notice title=register probe::$(curl -sS -X POST -H 'content-type: application/json' -d '{}' http://localhost:8008/_matrix/client/v3/register | cut -c1-400)"
+          # Public diagnostic: registration must answer 401 with UIA flows, not 403.
+          echo "::notice title=register probe::$(curl -sS -X POST -H 'content-type: application/json' -d '{}' http://localhost:8008/_matrix/client/v3/register | cut -c1-300)"
 
       - name: Run PoC (two accounts, encrypted DM, offline catch-up, no plaintext fallback)
         run: |
