@@ -11,7 +11,7 @@ export type ShellContext = { desktop: boolean };
 
 /** Today → time; this year → day and month; otherwise the date. */
 export function formatConversationTime(ts: number, now = Date.now()): string {
-  if (!ts) return "";
+  if (!Number.isFinite(ts) || ts <= 0) return "";
   const d = new Date(ts);
   const n = new Date(now);
   const sameDay =

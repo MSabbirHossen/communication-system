@@ -202,5 +202,7 @@ describe("formatConversationTime", () => {
     expect(formatConversationTime(new Date(2026, 2, 3).getTime(), now)).toMatch(/Mar/);
     expect(formatConversationTime(new Date(2025, 2, 3).getTime(), now)).toMatch(/2025/);
     expect(formatConversationTime(0, now)).toBe("");
+    expect(formatConversationTime(Number.MIN_SAFE_INTEGER, now)).toBe("");
+    expect(formatConversationTime(Number.NaN, now)).toBe("");
   });
 });

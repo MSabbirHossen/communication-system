@@ -63,6 +63,18 @@ export function isDirectRoom(room: Room, me: string, map: DirectMap): boolean {
   return myMember?.is_direct === true;
 }
 
+/**
+ * Last activity in milliseconds, or 0 when unknown. An invited room has no timeline
+ * events yet (the SDK answers Number.MIN_SAFE_INTEGER), so the invitation's own
+ * membership event supplies the time.
+ */
+function lastActiveOf(room: Room, me: string): number {
+  const last = room.getLastActiveTimestamp();
+  if (Number.isFinite(last) && last > 0) return last;
+  const invite = room.getMember(me)?.events.member?.getTs?.() ?? 0;
+  return invite > 0 ? invite : 0;
+}
+
 function previewOf(room: Room, me: string): ConversationPreview {
   const events = room.getLiveTimeline().getEvents();
   for (let i = events.length - 1; i >= 0; i--) {
@@ -92,7 +104,7 @@ export function listDirectConversations(client: MatrixClient): DirectConversatio
       otherUserId,
       displayName: room.getMember(otherUserId)?.name ?? otherUserId,
       membership,
-      lastActiveTs: room.getLastActiveTimestamp(),
+      lastActiveTs: lastActiveOf(room, me),
       preview: previewOf(room, me),
       unreadCount: room.getUnreadNotificationCount(NotificationCountType.Total),
       encrypted: room.hasEncryptionStateEvent(),

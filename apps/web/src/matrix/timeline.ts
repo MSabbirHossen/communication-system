@@ -152,9 +152,15 @@ export function discardFailed(client: MatrixClient, event: MatrixEvent): void {
   client.cancelPendingEvent(event);
 }
 
-/** Whether the room's live timeline can be paginated further back. */
+/**
+ * Whether the room's live timeline can be paginated further back: a back-pagination token
+ * exists and the room's creation event is not already loaded (the SDK keeps a token until a
+ * pagination comes back empty, which would show a pointless button on a fresh room).
+ */
 export function hasOlderHistory(room: Room): boolean {
-  return room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) !== null;
+  const timeline = room.getLiveTimeline();
+  if (timeline.getEvents()[0]?.getType() === EventType.RoomCreate) return false;
+  return timeline.getPaginationToken(EventTimeline.BACKWARDS) !== null;
 }
 
 /** Load up to `limit` older events into the live timeline; resolves to whether more remain. */

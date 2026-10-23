@@ -30,6 +30,8 @@ export interface FakeRoomSpec {
   dmInviter?: string;
   isDirectOnMyMembership?: boolean;
   lastActiveTs?: number;
+  /** Timestamp of my own membership event (an invitation's time). */
+  inviteTs?: number;
   unread?: number;
   encrypted?: boolean;
   events?: FakeEvent[];
@@ -65,8 +67,14 @@ export function fakeRoom(spec: FakeRoomSpec): Room {
         membership: m.membership ?? "join",
         events: {
           member:
-            userId === ME && spec.isDirectOnMyMembership
-              ? { getContent: () => ({ membership: "join", is_direct: true }) }
+            userId === ME && (spec.isDirectOnMyMembership || spec.inviteTs !== undefined)
+              ? {
+                  getContent: () => ({
+                    membership: spec.myMembership ?? "join",
+                    is_direct: spec.isDirectOnMyMembership === true,
+                  }),
+                  getTs: () => spec.inviteTs ?? 0,
+                }
               : undefined,
         },
       };
@@ -162,6 +170,22 @@ describe("direct conversation model", () => {
     const byId = Object.fromEntries(listDirectConversations(client).map((c) => [c.roomId, c]));
     expect(byId["!m"]!.preview).toEqual({ kind: "text", body: "last", mine: true });
     expect(byId["!e"]!.preview).toEqual({ kind: "encrypted" });
+  });
+
+  it("dates an invitation by its membership event when the room has no timeline yet", () => {
+    const invite = fakeRoom({
+      roomId: "!inv",
+      myMembership: "invite",
+      dmInviter: BOB,
+      members: [{ userId: ME, membership: "invite" }, { userId: BOB }],
+      lastActiveTs: Number.MIN_SAFE_INTEGER, // what the SDK answers for an empty timeline
+      inviteTs: 1_700_000_000_000,
+    });
+    const unknown = fakeRoom({ roomId: "!x", lastActiveTs: Number.MIN_SAFE_INTEGER });
+    const { client } = fakeRoomClient([invite, unknown], { [BOB]: ["!x"] });
+    const byId = Object.fromEntries(listDirectConversations(client).map((c) => [c.roomId, c]));
+    expect(byId["!inv"]!.lastActiveTs).toBe(1_700_000_000_000);
+    expect(byId["!x"]!.lastActiveTs).toBe(0);
   });
 
   it("identifies the other participant from m.direct, the inviter, or the sole other member", () => {

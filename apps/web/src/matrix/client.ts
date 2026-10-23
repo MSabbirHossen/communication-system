@@ -89,8 +89,12 @@ export interface StartSyncOptions {
 }
 
 /**
- * Start syncing and wait for the first sync to land (or time out), so that readiness
- * checks that depend on server state (cross-signing keys, device lists) are meaningful.
+ * Start syncing and wait for the first *live* sync to land (or time out), so that readiness
+ * checks that depend on server state (cross-signing keys, secret-storage account data,
+ * device lists) are meaningful. A client with a persisted sync store reports "prepared"
+ * from its cache first; that cache can predate the account data written during setup, so
+ * waiting for "prepared" alone sent an already set-up device back to the setup screen.
+ * Going offline (error / reconnecting) also resolves, with whatever state is cached.
  */
 export async function startSync(client: sdk.MatrixClient, o: StartSyncOptions = {}): Promise<void> {
   const firstSync = waitForFirstSync(client, o.firstSyncTimeoutMs ?? 20_000);
@@ -101,9 +105,14 @@ export async function startSync(client: sdk.MatrixClient, o: StartSyncOptions = 
   await firstSync;
 }
 
+const LIVE_OR_OFFLINE = new Set<sdk.SyncState | null>([
+  sdk.SyncState.Syncing,
+  sdk.SyncState.Error,
+  sdk.SyncState.Reconnecting,
+]);
+
 function waitForFirstSync(client: sdk.MatrixClient, timeoutMs: number): Promise<void> {
-  const state = client.getSyncState();
-  if (state === sdk.SyncState.Prepared || state === sdk.SyncState.Syncing) return Promise.resolve();
+  if (LIVE_OR_OFFLINE.has(client.getSyncState())) return Promise.resolve();
   return new Promise((resolve) => {
     const done = () => {
       clearTimeout(timer);
@@ -111,7 +120,7 @@ function waitForFirstSync(client: sdk.MatrixClient, timeoutMs: number): Promise<
       resolve();
     };
     const onSync = (s: sdk.SyncState) => {
-      if (s === sdk.SyncState.Prepared || s === sdk.SyncState.Syncing) done();
+      if (LIVE_OR_OFFLINE.has(s)) done();
     };
     const timer = setTimeout(done, timeoutMs);
     client.on(sdk.ClientEvent.Sync, onSync);

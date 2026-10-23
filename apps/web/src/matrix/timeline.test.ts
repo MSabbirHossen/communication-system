@@ -251,6 +251,14 @@ describe("history and receipts", () => {
     const more = fakeTimelineRoom("!r", [], true, "t1");
     const { client, scrollback } = fakeTimelineClient([more]);
     expect(hasOlderHistory(more)).toBe(true);
+    // A loaded creation event means the start of history is already on screen.
+    const fromStart = fakeTimelineRoom(
+      "!s",
+      [fakeEvent({ type: "m.room.create", content: {} })],
+      true,
+      "t1",
+    );
+    expect(hasOlderHistory(fromStart)).toBe(false);
     more.backToken = null;
     expect(await loadOlder(client, more)).toBe(false);
     expect(scrollback).toHaveBeenCalledWith(more, 30);

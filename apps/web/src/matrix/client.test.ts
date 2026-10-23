@@ -34,7 +34,12 @@ const mocks = vi.hoisted(() => {
 vi.mock("matrix-js-sdk", () => ({
   createClient: mocks.createClient,
   ClientEvent: { Sync: "sync" },
-  SyncState: { Prepared: "PREPARED", Syncing: "SYNCING" },
+  SyncState: {
+    Prepared: "PREPARED",
+    Syncing: "SYNCING",
+    Error: "ERROR",
+    Reconnecting: "RECONNECTING",
+  },
   IndexedDBStore: class {
     opts: unknown;
     constructor(opts: unknown) {
@@ -122,7 +127,12 @@ describe("createMatrixClient", () => {
     });
     const syncing = startSync(client, { initialSyncLimit: 5, pollTimeout: 1000 });
     expect(mocks.startClient).toHaveBeenCalledWith({ initialSyncLimit: 5, pollTimeout: 1000 });
-    mocks.listeners.get("sync")!("PREPARED"); // first sync lands → startSync resolves
+    let resolved = false;
+    void syncing.then(() => (resolved = true));
+    mocks.listeners.get("sync")!("PREPARED"); // from the cached store: not enough on its own
+    await new Promise((r) => setTimeout(r, 0));
+    expect(resolved).toBe(false);
+    mocks.listeners.get("sync")!("SYNCING"); // first live sync lands → startSync resolves
     await syncing;
     await stopAndClearClient(client);
     expect(mocks.stopClient).toHaveBeenCalled();
