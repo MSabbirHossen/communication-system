@@ -132,9 +132,17 @@ jobs:
         run: |
           set -o pipefail
           pnpm test:integration 2>&1 | tee "$RUNNER_TEMP/integration.log"
+          # The tests skip themselves without HOMESERVER_URL and the expiry test without
+          # ACCESS_TOKEN_LIFETIME_MS, and a skipped run exits 0: require a summary with
+          # passes and no skips so a misconfigured job cannot pass silently.
+          summary=$(grep -E '^ *Tests +[0-9]+ ' "$RUNNER_TEMP/integration.log" | tail -n 1)
+          echo "summary: $summary"
+          grep -qE '[1-9][0-9]* passed' <<<"$summary" || { echo "::error title=integration::no tests ran"; exit 1; }
+          ! grep -q skipped <<<"$summary" || { echo "::error title=integration::some tests were skipped: $summary"; exit 1; }
         env:
           HOMESERVER_URL: http://localhost:8008
           ACCESS_TOKEN_LIFETIME_MS: "10000"
+          NO_COLOR: "1"
 
       - name: Inspect the compose Synapse database and log for plaintext
         run: |
@@ -161,8 +169,10 @@ jobs:
             echo "::error title=poc::PoC did not run"
           fi
           if [ -f "$RUNNER_TEMP/integration.log" ]; then
-            echo "::notice title=integration::$(grep -E 'Tests +[0-9]+ ' "$RUNNER_TEMP/integration.log" | tail -n 1 | sed 's/^ *//')"
-            grep -E '^ *(×|✗|FAIL) ' "$RUNNER_TEMP/integration.log" | head -n 8 | while IFS= read -r l; do echo "::error title=integration::$l"; done
+            # Strip any ANSI colour codes so the counts are greppable.
+            sed -E 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/integration.log" > "$RUNNER_TEMP/integration.plain.log"
+            echo "::notice title=integration::$(grep -E '^ *(Test Files|Tests) +[0-9]+ ' "$RUNNER_TEMP/integration.plain.log" | sed 's/^ *//' | paste -sd ';' -)"
+            grep -E '^ *(×|✗|FAIL) ' "$RUNNER_TEMP/integration.plain.log" | head -n 8 | while IFS= read -r l; do echo "::error title=integration::$l"; done
           else
             echo "::error title=integration::integration tests did not run"
           fi
