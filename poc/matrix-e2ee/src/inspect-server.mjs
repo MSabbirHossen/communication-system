@@ -13,6 +13,8 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { classifyStoredEvent, containsPlaintext, parseArgs } from "./lib.mjs";
 
 const args = parseArgs(process.argv.slice(2));
@@ -20,6 +22,22 @@ if (!args.db) {
   console.error("usage: node src/inspect-server.mjs --db <homeserver.db> [--log <homeserver.log>]");
   process.exit(2);
 }
+
+/** @param {string} target */
+function resolveFilePath(target) {
+  if (!target) return target;
+  if (existsSync(target)) return target;
+  if (process.env.INIT_CWD) {
+    const fromInitCwd = resolve(process.env.INIT_CWD, target);
+    if (existsSync(fromInitCwd)) return fromInitCwd;
+  }
+  const fromWorkspaceRoot = resolve(fileURLToPath(import.meta.url), "../../../", target);
+  if (existsSync(fromWorkspaceRoot)) return fromWorkspaceRoot;
+  return target;
+}
+
+const dbPath = resolveFilePath(args.db);
+const logPath = args.log ? resolveFilePath(args.log) : undefined;
 
 const run = JSON.parse(readFileSync(new URL("../last-run.json", import.meta.url), "utf8"));
 const { roomId, nonce } = run;
@@ -36,8 +54,8 @@ function check(name, ok, detail = "") {
   if (!ok) failed = true;
 }
 
-console.log(`\n== Inspecting ${args.db} for room ${roomId}\n`);
-const db = new DatabaseSync(args.db, { readOnly: true });
+console.log(`\n== Inspecting ${dbPath} for room ${roomId}\n`);
+const db = new DatabaseSync(dbPath, { readOnly: true });
 
 const rows = /** @type {{ event_id: string, type: string, json: string }[]} */ (
   db
@@ -80,7 +98,7 @@ if (sample) {
 
 // Whole-file scan: the plaintext must not exist anywhere in the DB (including
 // to-device messages, device keys tables, or anything else).
-const dbBytes = readFileSync(args.db);
+const dbBytes = readFileSync(dbPath);
 const dbLeak = forbidden.find((f) => containsPlaintext(dbBytes, f));
 check(
   "forbidden plaintexts absent from the entire DB file",
@@ -103,8 +121,8 @@ check(
 const firstKey = keyRows[0];
 if (firstKey) console.log(`  sample device key record: ${firstKey.key_json.slice(0, 160)}…`);
 
-if (args.log && existsSync(args.log)) {
-  const log = readFileSync(args.log, "utf8");
+if (logPath && existsSync(logPath)) {
+  const log = readFileSync(logPath, "utf8");
   const logLeak = forbidden.find((f) => containsPlaintext(log, f));
   check(
     "forbidden plaintexts absent from homeserver log",
