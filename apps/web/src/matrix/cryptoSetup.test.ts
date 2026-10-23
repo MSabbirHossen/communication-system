@@ -212,3 +212,16 @@ describe("ensureCryptoReady on an additional device", () => {
     expect(crypto.bootstrapCrossSigning).not.toHaveBeenCalled();
   });
 });
+
+describe("readiness while offline", () => {
+  it("falls back to cached cross-signing knowledge when the key download fails", async () => {
+    const { client, crypto } = fakeClient(freshAccount());
+    (crypto.userHasCrossSigningKeys as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_user?: string, download?: boolean) => {
+        if (download) throw new TypeError("fetch failed");
+        return true;
+      },
+    );
+    expect((await getCryptoReadiness(client)).accountHasCrossSigning).toBe(true);
+  });
+});

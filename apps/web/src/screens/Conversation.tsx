@@ -26,6 +26,9 @@ const drafts = new Map<string, string>();
 /** How long the conversation must stay open and visible before it counts as read. */
 const READ_DELAY_MS = 400;
 
+/** Open conversations with fewer loaded messages than this fetch one page of history. */
+const AUTO_LOAD_BELOW = 10;
+
 function sameDay(a: number, b: number): boolean {
   const x = new Date(a);
   const y = new Date(b);
@@ -206,6 +209,36 @@ export function ConversationScreen() {
     };
   }, [client, room, conversation?.membership, lastKey]);
 
+  const older = useCallback(async () => {
+    if (!client || !room) return;
+    const el = listRef.current;
+    const before = el?.scrollHeight ?? 0;
+    setLoadingOlder(true);
+    setError(null);
+    try {
+      await loadOlder(client, room);
+      // Keep the messages that were on screen where they were.
+      requestAnimationFrame(() => {
+        if (el) el.scrollTop += el.scrollHeight - before;
+      });
+    } catch (e) {
+      setError(toAuthError(e));
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [client, room]);
+
+  // A room that just synced holds only its newest events (the sync window is limited):
+  // fetch one page of history automatically so a conversation does not open nearly empty.
+  const autoLoadedFor = useRef<string | null>(null);
+  const loadedCount = items.filter((i) => i.kind !== "system").length;
+  useEffect(() => {
+    if (!room || !hasMore || loadingOlder || loadedCount >= AUTO_LOAD_BELOW) return;
+    if (autoLoadedFor.current === roomId) return;
+    autoLoadedFor.current = roomId;
+    void older();
+  }, [room, roomId, hasMore, loadingOlder, loadedCount, older]);
+
   const onScroll = useCallback(() => {
     const el = listRef.current;
     if (!el) return;
@@ -236,24 +269,6 @@ export function ConversationScreen() {
       if (e instanceof EncryptionRequiredError) setError("encryption_required");
       else setError(toAuthError(e));
     });
-  };
-
-  const older = async () => {
-    const el = listRef.current;
-    const before = el?.scrollHeight ?? 0;
-    setLoadingOlder(true);
-    setError(null);
-    try {
-      await loadOlder(client, room);
-      // Keep the messages that were on screen where they were.
-      requestAnimationFrame(() => {
-        if (el) el.scrollTop += el.scrollHeight - before;
-      });
-    } catch (e) {
-      setError(toAuthError(e));
-    } finally {
-      setLoadingOlder(false);
-    }
   };
 
   const eventFor = (item: MessageItem) =>

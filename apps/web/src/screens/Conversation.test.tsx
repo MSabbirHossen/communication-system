@@ -247,7 +247,10 @@ describe("conversation view", () => {
 
 describe("history and read state", () => {
   it("offers to load older messages while a back-pagination token exists", async () => {
-    const room = chatRoom({ backToken: "t1", events: [fakeEvent({ id: "$1" })] });
+    const room = chatRoom({
+      backToken: "t1",
+      events: Array.from({ length: 12 }, (_, i) => fakeEvent({ id: `$e${i}` })),
+    });
     const { scrollback, em } = await renderChat(room);
     const button = screen.getByRole("button", { name: "Load older messages" });
     scrollback.mockImplementationOnce(async (r: Room) => {
@@ -302,5 +305,24 @@ describe("recipient security in the header", () => {
     await renderChat(room, { recipient: { wasVerified: true } });
     expect(await screen.findByText("Identity changed")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(/security identity has changed/i);
+  });
+});
+
+describe("history auto-load", () => {
+  it("fetches one page of history on open when only a few messages are loaded", async () => {
+    const room = chatRoom({ backToken: "t1", events: [fakeEvent({ id: "$1" })] });
+    const { scrollback } = await renderChat(room);
+    await waitFor(() => expect(scrollback).toHaveBeenCalledWith(room, 30));
+    expect(scrollback).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not auto-load when enough messages are already on screen", async () => {
+    const room = chatRoom({
+      backToken: "t1",
+      events: Array.from({ length: 12 }, (_, i) => fakeEvent({ id: `$e${i}` })),
+    });
+    const { scrollback } = await renderChat(room);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(scrollback).not.toHaveBeenCalled();
   });
 });

@@ -165,6 +165,10 @@ describe("timeline items", () => {
       }),
       fakeEvent({ id: "$7", type: "m.room.member", content: { membership: "join" } }),
       fakeEvent({ id: "$8", type: "m.room.power_levels", content: {} }),
+      fakeEvent({
+        id: "$9",
+        content: { msgtype: "m.key.verification.request", body: "wants to verify" },
+      }),
     ];
     const items = timelineItems(fakeTimelineRoom("!r", events), ME);
     expect(items.map((i) => i.kind)).toEqual([
@@ -175,6 +179,7 @@ describe("timeline items", () => {
       "unsupported",
       "system",
       "system",
+      "system",
     ]);
     expect(items[0]).toMatchObject({ body: "hello", mine: false, status: "sent", eventId: "$1" });
     expect(items[1]).toMatchObject({ body: "hi", mine: true, status: "pending" });
@@ -183,6 +188,7 @@ describe("timeline items", () => {
     expect(items[4]).toMatchObject({ eventType: "m.image" });
     expect(items[5]).toMatchObject({ text: "encryption_enabled" });
     expect(items[6]).toMatchObject({ text: "joined" });
+    expect(items[7]).toMatchObject({ text: "verification_request" });
     expect(
       toItem(fakeEvent({ type: "m.room.member", content: { membership: "ban" } }), ME),
     ).toBeNull();

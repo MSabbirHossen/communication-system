@@ -94,6 +94,7 @@ const en = {
   "chat.system.joined": "Joined the conversation.",
   "chat.system.left": "Left the conversation.",
   "chat.system.invited": "Invitation sent.",
+  "chat.system.verification_request": "Identity verification requested.",
   "chat.decryptionReason.MEGOLM_UNKNOWN_INBOUND_SESSION_ID": "waiting for the key",
   "chat.decryptionReason.MEGOLM_KEY_WITHHELD": "key withheld by the sender",
   "chat.decryptionReason.MEGOLM_KEY_WITHHELD_FOR_UNVERIFIED_DEVICE":

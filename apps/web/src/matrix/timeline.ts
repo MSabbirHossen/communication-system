@@ -29,7 +29,10 @@ export type MessageItem =
   | (ItemBase & { kind: "text"; body: string; status: MessageStatus })
   | (ItemBase & { kind: "undecryptable"; code: DecryptionFailureCode | "unknown" })
   | (ItemBase & { kind: "unsupported"; eventType: string; status: MessageStatus })
-  | (ItemBase & { kind: "system"; text: "encryption_enabled" | "joined" | "left" | "invited" });
+  | (ItemBase & {
+      kind: "system";
+      text: "encryption_enabled" | "joined" | "left" | "invited" | "verification_request";
+    });
 
 export class EncryptionRequiredError extends Error {
   constructor(public readonly roomId: string) {
@@ -70,6 +73,10 @@ export function toItem(ev: MatrixEvent, me: string): MessageItem | null {
     const content = ev.getContent() as { msgtype?: unknown; body?: unknown };
     if (content.msgtype === "m.text" && typeof content.body === "string") {
       return { ...base, kind: "text", body: content.body, status: statusOf(ev) };
+    }
+    // In-room verification requests travel as m.room.message events (Phase 3, commit 6).
+    if (content.msgtype === "m.key.verification.request") {
+      return { ...base, kind: "system", text: "verification_request" };
     }
     return {
       ...base,

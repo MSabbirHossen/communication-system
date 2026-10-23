@@ -51,7 +51,11 @@ export async function getCryptoReadiness(client: MatrixClient): Promise<CryptoRe
       crypto.isCrossSigningReady(),
       crypto.isSecretStorageReady(),
       crypto.getActiveSessionBackupVersion(),
-      crypto.userHasCrossSigningKeys(undefined, true),
+      // Offline start: when the key download fails, answer from what this device already knows
+      // so a set-up device can open with its cached state instead of failing to start.
+      crypto
+        .userHasCrossSigningKeys(undefined, true)
+        .catch(() => crypto.userHasCrossSigningKeys(undefined, false)),
     ],
   );
   return {
