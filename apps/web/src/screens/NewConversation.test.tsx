@@ -113,7 +113,7 @@ describe("new conversation", () => {
     expect(card).toHaveTextContent(/already have a conversation/i);
     await user.click(screen.getByRole("button", { name: "Open conversation" }));
     expect(createRoom).not.toHaveBeenCalled();
-    // The memory router shows the conversation route (a placeholder until the next commit).
-    expect(await screen.findByRole("status")).toHaveTextContent(/next commit/i);
+    // The memory router shows the existing conversation.
+    expect(await screen.findByRole("heading", { name: "Bob" })).toBeInTheDocument();
   });
 });

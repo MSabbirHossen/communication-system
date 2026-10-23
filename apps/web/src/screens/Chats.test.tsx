@@ -139,8 +139,8 @@ describe("conversation list", () => {
     await user.click(within(item).getByRole("button", { name: "Accept" }));
     await waitFor(() => expect(joinRoom).toHaveBeenCalledWith("!inv"));
     expect(setAccountData).toHaveBeenCalledWith("m.direct", { [BOB]: ["!inv"] });
-    // Accepting opens the conversation route (a placeholder until the next commit).
-    expect(await screen.findByRole("status")).toHaveTextContent(/next commit/i);
+    // Accepting opens the conversation route.
+    expect(await screen.findByRole("heading", { name: "Bob" })).toBeInTheDocument();
     expect(leave).not.toHaveBeenCalled();
   });
 
@@ -189,7 +189,7 @@ describe("conversation list", () => {
   it("below the desktop breakpoint, a selected conversation replaces the list", async () => {
     mockViewport(false);
     await renderChats("/chats/!a", [fakeRoom({ roomId: "!a" })], { [BOB]: ["!a"] });
-    expect(await screen.findByRole("status")).toHaveTextContent(/next commit/i);
+    expect(await screen.findByRole("heading", { name: "Bob" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Chats" })).toBeNull();
     expect(document.querySelector('[data-panes="1"]')).not.toBeNull();
   });

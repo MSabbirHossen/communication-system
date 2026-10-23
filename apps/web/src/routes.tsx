@@ -3,6 +3,7 @@ import { AppShell } from "./shell/AppShell";
 import { NotFoundScreen, RouteErrorScreen, SettingsScreen, WelcomeScreen } from "./screens";
 import { LoginScreen, PrivacyScreen, RegisterScreen } from "./screens/auth";
 import { ChatsScreen, NoConversationSelected } from "./screens/Chats";
+import { ConversationScreen } from "./screens/Conversation";
 import { NewConversationScreen } from "./screens/NewConversation";
 import { PendingScreen } from "./screens/pending";
 import { DevicesSecurityScreen } from "./screens/DevicesSecurity";
@@ -57,7 +58,8 @@ export const routes: RouteObject[] = [
             children: [
               { index: true, element: <NoConversationSelected /> },
               { path: "new", element: <NewConversationScreen /> },
-              { path: ":roomId", element: <PendingScreen /> },
+              { path: ":roomId", element: <ConversationScreen /> },
+              { path: ":roomId/details", element: <PendingScreen /> },
             ],
           },
           { path: "/people", element: <NewConversationScreen /> },
