@@ -4,6 +4,7 @@ import { NotFoundScreen, RouteErrorScreen, SettingsScreen, WelcomeScreen } from 
 import { LoginScreen, PrivacyScreen, RegisterScreen } from "./screens/auth";
 import { ChatsScreen, NoConversationSelected } from "./screens/Chats";
 import { ConversationScreen } from "./screens/Conversation";
+import { ConversationDetailsScreen } from "./screens/ConversationDetails";
 import { NewConversationScreen } from "./screens/NewConversation";
 import { PendingScreen } from "./screens/pending";
 import { DevicesSecurityScreen } from "./screens/DevicesSecurity";
@@ -59,7 +60,8 @@ export const routes: RouteObject[] = [
               { index: true, element: <NoConversationSelected /> },
               { path: "new", element: <NewConversationScreen /> },
               { path: ":roomId", element: <ConversationScreen /> },
-              { path: ":roomId/details", element: <PendingScreen /> },
+              { path: ":roomId/details", element: <ConversationDetailsScreen /> },
+              { path: ":roomId/verify", element: <PendingScreen /> },
             ],
           },
           { path: "/people", element: <NewConversationScreen /> },

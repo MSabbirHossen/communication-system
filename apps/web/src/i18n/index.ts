@@ -52,6 +52,34 @@ const en = {
   "chat.composer.disabled": "Messages cannot be sent here",
   "chat.send": "Send",
   "chat.loadOlder": "Load older messages",
+  "chat.identityChanged":
+    "This person's security identity has changed since you verified them. Check their devices before trusting new messages.",
+
+  // Recipient security and conversation details (UI brief 6.7)
+  "security.identity.verified": "Identity verified",
+  "security.identity.changed": "Identity changed",
+  "security.identity.unverified": "Identity not verified",
+  "security.unverifiedDevices": "Unverified devices",
+  "security.identity.verified.help":
+    "You verified this person. Messages are encrypted to devices their verified identity vouches for.",
+  "security.identity.changed.help":
+    "Their identity keys were replaced after you verified them. This happens after a reset or a compromise. Compare fingerprints or verify them again before trusting new messages.",
+  "security.identity.unverified.help":
+    "Encryption protects these messages in transit and on the server, but you have not confirmed who holds the other side. Verify them by comparing emoji to be sure.",
+  "security.identity.unknown.help": "Verification state is unavailable on this device.",
+  "details.title": "Conversation details",
+  "details.identity": "Identity",
+  "details.encryption": "Encryption",
+  "details.encryption.help":
+    "Messages are end-to-end encrypted (Megolm) on your devices. The server stores only ciphertext. Being encrypted does not by itself prove who is on the other side.",
+  "details.devices": "Their devices",
+  "details.devices.none": "No encryption keys are published for this person yet.",
+  "details.devices.help":
+    "Every device of theirs that can read this conversation. Not verified means their identity has not vouched for it; compare fingerprints out of band if in doubt.",
+  "details.leave": "Leave conversation",
+  "details.leave.title": "Leave this conversation?",
+  "details.leave.body":
+    "You will stop receiving messages here and the conversation leaves your list. Messages already on your devices are not erased.",
   "chat.status.pending": "Sending\u2026",
   "chat.status.sent": "Sent",
   "chat.status.failed": "Not sent",

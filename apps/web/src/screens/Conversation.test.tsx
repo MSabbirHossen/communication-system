@@ -3,6 +3,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { EventEmitter } from "node:events";
 import { EventStatus, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
+import { fakeRecipientCrypto } from "../matrix/recipientSecurity.test";
 import { BOB, ME, fakeEvent } from "../matrix/timeline.test";
 import { mockViewport } from "../test/setup";
 import { controllerIn, renderApp } from "../test/session";
@@ -43,7 +44,12 @@ function chatRoom(
   return room as unknown as Room & typeof room;
 }
 
-function chatClient(room: Room, opts: { encryptionEnabled?: boolean } = {}) {
+type RecipientOpts = Parameters<typeof fakeRecipientCrypto>[0];
+
+function chatClient(
+  room: Room,
+  opts: { encryptionEnabled?: boolean; recipient?: RecipientOpts } = {},
+) {
   const em = new EventEmitter();
   const sendTextMessage = vi.fn(async () => ({ event_id: "$sent" }));
   const resendEvent = vi.fn(async () => ({ event_id: "$resent" }));
@@ -56,7 +62,10 @@ function chatClient(room: Room, opts: { encryptionEnabled?: boolean } = {}) {
     getUserId: () => ME,
     getDeviceId: () => "DEVTEST",
     getDomain: () => "localhost",
-    getCrypto: () => ({ isEncryptionEnabledInRoom: async () => opts.encryptionEnabled ?? true }),
+    getCrypto: () => ({
+      ...fakeRecipientCrypto(opts.recipient ?? {}),
+      isEncryptionEnabledInRoom: async () => opts.encryptionEnabled ?? true,
+    }),
     on: (e: string, cb: (...a: unknown[]) => void) => em.on(e, cb),
     removeListener: (e: string, cb: (...a: unknown[]) => void) => em.removeListener(e, cb),
     getVisibleRooms: () => [room],
@@ -88,7 +97,7 @@ function chatClient(room: Room, opts: { encryptionEnabled?: boolean } = {}) {
 
 async function renderChat(
   room: Room & { events: MatrixEvent[] },
-  opts: { encryptionEnabled?: boolean } = {},
+  opts: { encryptionEnabled?: boolean; recipient?: RecipientOpts } = {},
 ) {
   mockViewport(true);
   const fake = chatClient(room, opts);
@@ -263,5 +272,35 @@ describe("history and read state", () => {
     await waitFor(() => expect(sendReadReceipt).toHaveBeenCalledWith(last, "m.read.private"));
     expect(sendReadReceipt).toHaveBeenCalledTimes(1);
     for (const call of sendReadReceipt.mock.calls) expect(call[1]).not.toBe("m.read");
+  });
+});
+
+describe("recipient security in the header", () => {
+  it("warns about unverified devices without blocking sending", async () => {
+    const room = chatRoom();
+    const { sendTextMessage } = await renderChat(room, {
+      recipient: { devices: [{ id: "PHONE", verified: false }] },
+    });
+    expect(await screen.findByText("Unverified devices")).toBeInTheDocument();
+    await userEvent
+      .setup()
+      .type(screen.getByRole("textbox", { name: "Message" }), "still fine{Enter}");
+    expect(sendTextMessage).toHaveBeenCalledWith(room.roomId, "still fine");
+  });
+
+  it("shows a verified identity only when the SDK says so", async () => {
+    const room = chatRoom();
+    await renderChat(room, {
+      recipient: { crossSigningVerified: true, devices: [{ id: "PHONE", verified: true }] },
+    });
+    expect(await screen.findByText("Identity verified")).toBeInTheDocument();
+    expect(screen.queryByText("Unverified devices")).toBeNull();
+  });
+
+  it("flags a changed identity in the header and above the messages", async () => {
+    const room = chatRoom();
+    await renderChat(room, { recipient: { wasVerified: true } });
+    expect(await screen.findByText("Identity changed")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/security identity has changed/i);
   });
 });

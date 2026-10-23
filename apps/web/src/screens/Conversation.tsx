@@ -15,6 +15,7 @@ import {
   type MessageItem,
 } from "../matrix/timeline";
 import { useSession } from "../session/SessionProvider";
+import { useRecipientSecurity } from "../session/useRecipientSecurity";
 import { useConversations, useRoom, useRoomTimeline } from "../session/useRooms";
 import { authErrorMessage } from "./auth";
 import type { ShellContext } from "./Chats";
@@ -166,6 +167,7 @@ export function ConversationScreen() {
   const room = useRoom(roomId);
   const conversation = useConversations().find((c) => c.roomId === roomId);
   const items = useRoomTimeline(room);
+  const security = useRecipientSecurity(conversation?.otherUserId);
   const [draft, setDraft] = useState(() => drafts.get(roomId) ?? "");
   const [error, setError] = useState<AuthError | "encryption_required" | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -277,6 +279,13 @@ export function ConversationScreen() {
           </p>
         </div>
         <div className="chat__badges">
+          {security?.identity === "changed" ? (
+            <span className="badge badge--warn">{t("security.identity.changed")}</span>
+          ) : security && security.unverifiedCount > 0 ? (
+            <span className="badge badge--warn">{t("security.unverifiedDevices")}</span>
+          ) : security?.identity === "verified" ? (
+            <span className="badge badge--ok">{t("security.identity.verified")}</span>
+          ) : null}
           {conversation.encrypted ? (
             <span className="badge badge--ok">{t("chat.encrypted")}</span>
           ) : (
@@ -295,6 +304,14 @@ export function ConversationScreen() {
         <InvitePrompt conversation={conversation} />
       ) : (
         <>
+          {security?.identity === "changed" && (
+            <p className="banner banner--danger" role="alert">
+              {t("chat.identityChanged")}{" "}
+              <Link to={`/chats/${encodeURIComponent(roomId)}/details`} className="link">
+                {t("chat.details")}
+              </Link>
+            </p>
+          )}
           <ol
             className="messages"
             aria-label={t("chat.messages")}
