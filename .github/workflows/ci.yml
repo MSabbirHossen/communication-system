@@ -155,7 +155,7 @@ jobs:
           sudo cp infrastructure/synapse/data/homeserver.db* "$RUNNER_TEMP/dbcopy/"
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/dbcopy"
           ls -la "$RUNNER_TEMP/dbcopy"
-          pnpm poc:inspect -- --db "$RUNNER_TEMP/dbcopy/homeserver.db" --log "$RUNNER_TEMP/synapse-container.log" 2>&1 | tee "$RUNNER_TEMP/inspect.log"
+          pnpm poc:inspect -- --db "$RUNNER_TEMP/dbcopy/homeserver.db" --log "$RUNNER_TEMP/synapse-container.log" --nonce-file apps/web/test/integration/last-run.json 2>&1 | tee "$RUNNER_TEMP/inspect.log"
 
       - name: Publish results as annotations (readable without sign-in)
         if: always()
@@ -201,6 +201,7 @@ jobs:
           name: dev-env-evidence
           path: |
             poc/matrix-e2ee/last-run.json
+            apps/web/test/integration/last-run.json
             ${{ runner.temp }}/poc.log
             ${{ runner.temp }}/inspect.log
             ${{ runner.temp }}/integration.log

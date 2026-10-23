@@ -155,8 +155,10 @@ export async function lookupUser(client: MatrixClient, userId: string): Promise<
     const profile = await client.getProfileInfo(userId);
     return { found: true, userId, displayName: profile.displayname?.trim() || userId };
   } catch (err) {
-    const code = (err as { errcode?: string }).errcode;
-    if (code === "M_NOT_FOUND") return { found: false, userId };
+    // Synapse answers 404 M_NOT_FOUND for unknown users, or 404 M_UNKNOWN ("No row found")
+    // for accounts that never set a profile: both mean "no such account".
+    const { errcode, httpStatus } = err as { errcode?: string; httpStatus?: number };
+    if (errcode === "M_NOT_FOUND" || httpStatus === 404) return { found: false, userId };
     throw err;
   }
 }

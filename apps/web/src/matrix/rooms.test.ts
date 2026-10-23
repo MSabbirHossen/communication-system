@@ -226,6 +226,8 @@ describe("starting a conversation by identifier", () => {
       if (userId === BOB) return { displayname: "  Bob  " };
       if (userId === "@blank:localhost") return {};
       if (userId === "@down:localhost") throw new Error("boom");
+      if (userId === "@gone:localhost")
+        throw Object.assign(new Error("No row found"), { errcode: "M_UNKNOWN", httpStatus: 404 });
       throw Object.assign(new Error("not found"), { errcode: "M_NOT_FOUND" });
     });
     const client = { getProfileInfo } as unknown as MatrixClient;
@@ -238,6 +240,10 @@ describe("starting a conversation by identifier", () => {
     expect(await lookupUser(client, "@nobody:localhost")).toEqual({
       found: false,
       userId: "@nobody:localhost",
+    });
+    expect(await lookupUser(client, "@gone:localhost")).toEqual({
+      found: false,
+      userId: "@gone:localhost",
     });
     await expect(lookupUser(client, "@down:localhost")).rejects.toThrow("boom");
   });

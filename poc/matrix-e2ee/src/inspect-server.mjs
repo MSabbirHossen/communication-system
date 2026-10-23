@@ -8,7 +8,9 @@
 //     appear nowhere in the whole DB file nor in the homeserver log,
 //   - the device-key table holds public keys only.
 //
-// Usage: node src/inspect-server.mjs --db <path/to/homeserver.db> [--log <path/to/homeserver.log>]
+// Usage: node src/inspect-server.mjs --db <path/to/homeserver.db> [--log <path/to/homeserver.log>] [--nonce-file <last-run.json>]
+//   --nonce-file: a second last-run.json (the Phase 2/3 integration run) whose room must hold
+//   ciphertext only and whose nonce must be absent from the DB and log as well.
 // Reads room id and nonce from last-run.json written by poc.mjs.
 
 import { DatabaseSync } from "node:sqlite";
@@ -46,6 +48,19 @@ if (!roomId || !nonce) {
   process.exit(2);
 }
 const forbidden = [nonce, ...(run.forbiddenPlaintexts ?? [])];
+
+/** @type {{ roomId: string, nonce: string, forbiddenPlaintexts?: string[] } | null} */
+let extra = null;
+if (args["nonce-file"]) {
+  const extraPath = resolveFilePath(args["nonce-file"]);
+  if (existsSync(extraPath)) {
+    extra = JSON.parse(readFileSync(extraPath, "utf8"));
+    if (extra?.nonce) forbidden.push(extra.nonce, ...(extra.forbiddenPlaintexts ?? []));
+  } else {
+    console.error(`nonce file not found: ${extraPath}`);
+    process.exit(2);
+  }
+}
 
 let failed = false;
 /** @param {string} name @param {boolean} ok @param {string} [detail] */
@@ -94,6 +109,23 @@ if (sample) {
   console.log(`    algorithm=${c.algorithm} session_id=${c.session_id?.slice(0, 12)}…`);
   console.log(`    ciphertext=${c.ciphertext.slice(0, 60)}… (${c.ciphertext.length} chars)`);
   console.log(`    content keys=${Object.keys(c).join(",")}`);
+}
+
+if (extra?.roomId) {
+  const extraRows = /** @type {{ type: string, json: string }[]} */ (
+    db
+      .prepare(
+        `SELECT e.type, ej.json FROM events e JOIN event_json ej ON e.event_id = ej.event_id WHERE e.room_id = ?`,
+      )
+      .all(extra.roomId)
+  );
+  const encrypted = extraRows.filter((r) => r.type === "m.room.encrypted").length;
+  const plain = extraRows.filter((r) => r.type === "m.room.message").length;
+  check(
+    "integration room holds encrypted events only",
+    extraRows.length > 0 && encrypted > 0 && plain === 0,
+    `${extraRows.length} events, ${encrypted} m.room.encrypted, ${plain} m.room.message`,
+  );
 }
 
 // Whole-file scan: the plaintext must not exist anywhere in the DB (including
