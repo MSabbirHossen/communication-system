@@ -20,6 +20,7 @@ import { clearSession, loadSession, saveSession } from "./matrix/sessionStore";
 import { createAppRouter } from "./routes";
 import { SessionController } from "./session/controller";
 import { SessionProvider } from "./session/SessionProvider";
+import { SecurityProvider, realSecurityDeps } from "./session/security";
 import { ErrorBoundary } from "./shell/ErrorBoundary";
 import { ThemeProvider } from "./shell/ThemeProvider";
 
@@ -61,7 +62,9 @@ try {
       <ErrorBoundary logger={logger}>
         <ThemeProvider>
           <SessionProvider controller={controller}>
-            <RouterProvider router={createAppRouter()} />
+            <SecurityProvider deps={realSecurityDeps}>
+              <RouterProvider router={createAppRouter()} />
+            </SecurityProvider>
           </SessionProvider>
         </ThemeProvider>
       </ErrorBoundary>

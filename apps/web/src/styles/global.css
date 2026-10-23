@@ -413,3 +413,45 @@ code {
   max-width: 480px;
   width: 100%;
 }
+
+/* Own-device verification and security notices */
+.banner--ok {
+  color: var(--cs-color-success);
+  border: var(--cs-size-border-width) solid var(--cs-color-border);
+  border-radius: var(--cs-radius-md);
+  padding: var(--cs-space-2) var(--cs-space-3);
+}
+.emoji-grid {
+  list-style: none;
+  padding: 0;
+  margin: var(--cs-space-4) 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: var(--cs-space-3);
+}
+.emoji {
+  text-align: center;
+}
+.emoji__glyph {
+  display: block;
+  font-size: 2rem;
+  line-height: 1.25;
+}
+.emoji__name {
+  font-size: var(--cs-type-meta-size);
+  color: var(--cs-color-text-muted);
+}
+.notice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-3);
+  flex-wrap: wrap;
+}
+.notice__text {
+  flex: 1 1 240px;
+}

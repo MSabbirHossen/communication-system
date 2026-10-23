@@ -11,6 +11,7 @@ import {
 import { LoginScreen, PrivacyScreen, RegisterScreen } from "./screens/auth";
 import { DevicesSecurityScreen } from "./screens/DevicesSecurity";
 import { SecureDeviceSetupScreen } from "./screens/SecureDeviceSetup";
+import { VerifyDeviceScreen } from "./screens/VerifyDevice";
 import { RedirectIfSignedIn, RequireClient, RequireSession } from "./session/SessionProvider";
 
 export const routes: RouteObject[] = [
@@ -58,6 +59,7 @@ export const routes: RouteObject[] = [
           { path: "/people", element: <PeopleScreen /> },
           { path: "/settings", element: <SettingsScreen /> },
           { path: "/settings/devices", element: <DevicesSecurityScreen /> },
+          { path: "/settings/devices/verify/:deviceId", element: <VerifyDeviceScreen /> },
           { path: "*", element: <NotFoundScreen /> },
         ],
       },

@@ -164,6 +164,44 @@ const en = {
     "Enter your password to sign out a device. It is sent to the server once and not kept.",
   "devices.refresh": "Refresh list",
 
+  // Own-device verification (APP_FLOW 5.4)
+  "verify.title": "Verify device",
+  "verify.deviceLabel": "Device",
+  "verify.waiting.accept":
+    "Waiting for your other device to accept the request. Open it and choose Review on the notice it shows.",
+  "verify.incoming.body":
+    "Another of your devices asked to verify with this one. Continue only if you started this from a device you control.",
+  "verify.accept": "Continue",
+  "verify.decline": "Decline",
+  "verify.starting": "Starting the emoji comparison…",
+  "verify.waiting.start": "Waiting for the other device to start the emoji comparison…",
+  "verify.intro":
+    "Compare these emoji with the ones shown on your other device. They must be the same, in the same order.",
+  "verify.emoji.list": "Emoji to compare",
+  "verify.compare": "Do both devices show the same emoji?",
+  "verify.match": "They match",
+  "verify.mismatch": "They don't match",
+  "verify.confirming": "Waiting for the other device to confirm…",
+  "verify.done.body": "Device verified. Both devices now trust each other's encryption keys.",
+  "verify.cancelled.mismatch":
+    "The emoji did not match, so this device was not verified. If you did not expect this, sign that device out from Devices & security.",
+  "verify.cancelled.user": "Verification was cancelled. The device stays unverified.",
+  "verify.cancelled.other": "Verification did not complete. The device stays unverified.",
+  "verify.cancel": "Cancel",
+  "verify.back": "Back to devices",
+
+  // Security notices (THREAT_MODEL TM-03, TM-08)
+  "notice.list": "Security notices",
+  "notice.newDevice": "A new device signed in to your account:",
+  "notice.newDevice.action": "Review devices",
+  "notice.identityChanged":
+    "Your account's security identity changed. If you did not set up a new device or reset your keys, review your devices now.",
+  "notice.backupDisabled": "Encrypted message backup is turned off for this account.",
+  "notice.verificationRequest": "One of your devices wants to verify with this one:",
+  "notice.verificationRequest.action": "Review",
+  "notice.decline": "Decline",
+  "notice.dismiss": "Dismiss",
+
   // Privacy notes (placeholder for the Phase 8 disclosure)
   "privacy.title": "Privacy notes",
   "privacy.e2ee":

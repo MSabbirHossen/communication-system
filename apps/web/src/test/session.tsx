@@ -8,6 +8,7 @@ import { SecretStorageKeyHolder } from "../matrix/recoveryKey";
 import { createTestRouter } from "../routes";
 import { SessionController, type SessionDeps } from "../session/controller";
 import { SessionProvider } from "../session/SessionProvider";
+import { SecurityProvider, type SecurityDeps } from "../session/security";
 import { ThemeProvider } from "../shell/ThemeProvider";
 
 export const testSession: StoredSession = {
@@ -82,11 +83,29 @@ export async function controllerIn(
   return c;
 }
 
-export function renderApp(path: string, controller: SessionController) {
+/** Security deps that never emit; override to script notices or verification flows. */
+export function fakeSecurityDeps(overrides: Partial<SecurityDeps> = {}): SecurityDeps {
+  return {
+    watchSecurityEvents: vi.fn(() => () => {}),
+    watchIncomingVerification: vi.fn(() => () => {}),
+    requestVerification: vi.fn(async () => {
+      throw new Error("requestVerification not faked");
+    }),
+    ...overrides,
+  };
+}
+
+export function renderApp(
+  path: string,
+  controller: SessionController,
+  security: SecurityDeps = fakeSecurityDeps(),
+) {
   return render(
     <ThemeProvider>
       <SessionProvider controller={controller}>
-        <RouterProvider router={createTestRouter([path])} />
+        <SecurityProvider deps={security}>
+          <RouterProvider router={createTestRouter([path])} />
+        </SecurityProvider>
       </SessionProvider>
     </ThemeProvider>,
   );

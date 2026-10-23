@@ -2,6 +2,7 @@ import { Outlet } from "react-router";
 import { t } from "../i18n";
 import { DESKTOP_QUERY, useMediaQuery, useOnlineStatus } from "./hooks";
 import { Nav } from "./Nav";
+import { SecurityBanners } from "./SecurityBanners";
 
 export function OfflineBanner() {
   const online = useOnlineStatus();
@@ -31,6 +32,7 @@ export function AppShell() {
       {desktop && <Nav variant="rail" />}
       <div className="shell__content">
         <OfflineBanner />
+        <SecurityBanners />
         <main id="main" className="shell__main" tabIndex={-1}>
           <Outlet context={{ desktop }} />
         </main>
