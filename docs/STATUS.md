@@ -1,70 +1,82 @@
 # Project Status
 
 ## Active phase
-Phase 2 — Identity, authentication and device security (**planning only; no implementation until the owner approves the plan**)
+Phase 2 — Identity, authentication and device security (**implementation complete; exit gate awaiting the owner's review**)
 
 ## Last completed milestone
-**Phase 1 complete — exit gate closed 2026-10-23.** Both halves satisfied: CI green on the tip of `main` (run 39899908581 at `9972177`: checks, secrets-scan, dev-env and poc-e2ee all green; dev-env on Synapse 1.163.1 with API `/ready` 200, PoC 31/31, inspection 8/8) and the owner's local walkthrough of `docs/runbooks/local-development.md` on Windows with Docker Desktop (WSL2 backend), reported passed with no errors.
+**Phase 2 implemented, tested and verified locally (2026-10-23).** Eight planned commits plus one fix on local `main` on top of `89d9d3d` (the Phase 1 tip): session store and client factory `1ad0395`, registration and login `160cd97`, secure device setup with recovery key and key backup `585869e`, session lifecycle with app-driven token refresh `83c1a54`, device list and revocation `31175f5`, own-device SAS verification and security notices `a5e4908`, refresh-token config and integration tests in CI `cd7a2e7`, crypto-store wipe fix `33de740`, and this documentation commit. **Not pushed**: the owner asked for a local report before pushing; CI has not run on these commits yet.
 
-Owner commits made during the walkthrough, outside the agent session (reconciled 2026-10-23):
-- `37c3241`, `485f8f5` `infrastructure/synapse/init.mjs`: spawn `docker` without a shell on every platform and handle spawn errors explicitly (the shell-on-Windows path was unnecessary with Docker Desktop on PATH); clearer "start Docker Desktop" message.
-- `9972177` `poc/matrix-e2ee/src/inspect-server.mjs`: resolve relative `--db`/`--log` paths against `INIT_CWD` and the workspace root, so `pnpm poc:inspect -- --db infrastructure/synapse/data/homeserver.db` works from the repo root as the runbook says. Absolute paths (used by CI) are unchanged.
-- CI history: run 39897001091 on `37c3241` failed `format:check` (Prettier), fixed in the following commits; run 39899908581 on the tip is green. Local re-check on the tip the same day: format, lint, typecheck and 84 tests pass.
-
-Phase 0 complete and approved with conditions (2026-10-20): ADR-0001 Accepted; E2EE PoC verified locally (Synapse 1.67.0) and in CI (Synapse 1.163.0/1.163.1).
+Phase 1 closed 2026-10-23 (CI run 39899908581 green on `9972177`; owner's runbook walkthrough passed). Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
 
 ## Current task
-Phase 2 plan for owner approval (AGENTS.md step 2), checked against the Phase 2 exit gate in IMPLEMENTATION_PLAN.md. No Phase 2 code until approved.
+Owner review of the Phase 2 exit gate (evidence below), then push and confirm CI on the `dev-env` job, which now runs the Phase 2 integration tests. No Phase 3 work has started.
 
-## Completed (Phase 1)
-Labels follow AGENTS.md §12.
+## Completed (Phase 2)
+Labels follow AGENTS.md §12. Unit = jsdom/Node tests without a network; integration = Node against the compose Synapse 1.163.1 (`pnpm test:integration`); manual = built-in browser against the local dev server, two origins (`localhost`, `second.localhost`) as two devices.
 
 | Deliverable | Status | Evidence |
 |---|---|---|
-| Workspace tooling: strict `tsconfig.base.json`, ESLint 10 flat config (typescript-eslint, react-hooks, jsx-a11y, prettier), Prettier, Vitest workspace projects, root scripts | Verified | `pnpm format:check`, `pnpm lint`, `pnpm typecheck` all pass |
-| `@cs/design-tokens`: tokens from UI/UX brief §4/§8 → CSS variables (light/dark/system) + typed object; WCAG AA contrast tests | Verified | 36 tests pass; `dist/tokens.css` generated |
-| `@cs/logger`: pino with redaction + deep scrubber; browser adapter; no network transport | Verified | 9 tests (secret values never emitted; stacks only outside production) |
-| `@cs/validation`: `parseEnv` (names only in errors), env helpers | Verified | 5 tests |
-| `@cs/shared-types` | Implemented | builds; consumed by api/web |
-| `@cs/api`: Express 5 app factory, helmet, CORS allowlist, request id, privacy-safe request log, 64 KB body limit, rate limit, `/api/v1/health`, `/api/v1/ready` (Mongo ping), error envelope, env boundaries | Verified | 14 tests (supertest); manual: fails fast with `MONGODB_URI (missing)`, refuses `CORS_ORIGINS=*` in production, exits non-zero on unreachable Mongo |
-| `@cs/web`: Vite + React 19 shell, React Router, two-pane ≥1024px / bottom nav below, theme (system/light/dark, persisted), offline banner, error boundary, lang/dir plumbing, dev CSP | Verified | 9 tests; manual in built-in browser: rail + 2 panes at 1200px, bottom nav + 1 pane at 375px, Light theme applied and stored (`cs.theme`), `lang=en dir=ltr` |
-| `@cs/mobile`: Capacitor config and sync script; platforms deferred to Phase 5 | Implemented | typecheck passes; `pnpm --filter @cs/mobile build` builds web and reports "no native platforms" |
-| `infrastructure/`: docker-compose (Synapse + MongoDB), cross-platform `init.mjs`, `dev-overrides.yaml` (no secrets), README | **Verified in CI** (`dev-env` job: both services healthy, init script appended overrides, registration probe 401 with dummy flow); not executed locally (no Docker on this machine) | run 39506556177 |
-| CI: `checks` (+format, audit advisory), `secrets-scan` (gitleaks), `dev-env` (compose + API readiness + PoC), `poc-e2ee` kept | **Verified green** — `dev-env`: API `/health` 200, `/ready` 200 `{mongo: ok}`, auth header absent from logs, PoC 31/31, inspection 8/8 on Synapse 1.163.0 | https://github.com/MSabbirHossen/communication-system/actions/runs/39506556177 |
-| Docs: ADR-0002, `docs/runbooks/local-development.md`, README, package READMEs | Implemented | files |
-| Full build (`pnpm build`) | Verified | packages, api, web (411 kB JS, 7.7 kB CSS), mobile |
+| Session store (`cs-session` IndexedDB, versioned, no `localStorage`; explicit error when storage is unavailable) and Matrix client factory (per-device sync and Rust crypto stores) | Verified | unit (fake-indexeddb; store startup order; crypto prefix); manual (databases per device) |
+| Registration (UIA `m.login.dummy` only, else unsupported) and login with refresh tokens; generic invalid-credentials message; server-side username rejection; rate-limit retry-after surfaced | Verified | integration (register, login, wrong password = unknown user, taken and invalid usernames); unit (error mapping never includes free text); manual (wrong password message) |
+| Secure device setup: cross-signing (UIA password when required), secret storage with a recovery key shown once (copy/download/acknowledge), server-side key backup; additional device restores with the key (wrong key rejected, 5 attempts) or skips and stays unverified | Verified | integration (created; restored after a wrong key; skipped); manual (key shown once; restore on a second device; skip path) |
+| Session lifecycle: restore on start, proactive refresh 60 s before expiry, refresh before use, retry on network failure, soft logout → refresh + restart sync, hard logout → wipe stores and route to sign-in with "session expired", sign-out | Verified | unit (fake timers; dedupe; rejection → signed out); integration (expiry → `soft_logout` → refresh at a 10 s lifetime; used refresh token rejected; logout → `M_UNKNOWN_TOKEN`); manual (reload restores the session; `POST /refresh → 200` observed) |
+| Devices & security screen: current session first, fingerprints, Verified / Not verified / Unknown / No keys from SDK state only, rename, revoke with confirmation and password re-authentication (cancel changes nothing) | Verified | unit; integration (revoke needs the password; cancelled UIA leaves the device; revoked client observes a hard logout); manual (`DELETE /devices/<id>` 401 → UIA → 200; revoked tab lands on sign-in) |
+| Own-device verification (SAS `m.sas.v1`): request from the device list, incoming request notice, seven emoji compared with explicit match/mismatch, cancel keeps the warning, leaving the screen cancels | Verified | unit (flow state machine with a faked verifier; screen paths); integration (two Node clients: match → verified; mismatch → `m.mismatched_sas`, stays unverified); manual (two origins: identical emoji, both Verified afterwards) |
+| Security notices: new device on the account, master cross-signing key replaced (snapshot comparison, no false alarms on trust changes), key backup disabled, incoming verification request | Verified (new device, verification request) / Tested (identity change, backup disabled: unit only) | unit; manual (new-device and verification-request notices seen on the other origin) |
+| Hard logout wipes the device's crypto store (fix `33de740`: the SDK needs the per-device prefix) | Verified | unit (prefix asserted); manual (after revocation only the empty `cs-session` database remains; SDK log shows the per-device store removed) |
+| Dev Synapse refresh tokens (5 m access / 30 d refresh); CI dev-env job runs the integration tests at a 10 s access-token lifetime and publishes annotations | Implemented; Tested locally with the same 10 s setting | `infrastructure/synapse/dev-overrides.yaml`, `.github/workflows/ci.yml`; **CI run pending push** |
+| ADR-0003 (storage, token model, logout semantics, setup and recovery model, "Verified" meaning, UIA, notices), THREAT_MODEL (TM-03/06/08/10 Verified, TM-11/16 updated, TM-24/25 added), runbook §8 Phase 2 checklist | Implemented | `docs/architecture/ADR-0003-identity-sessions-and-recovery.md` (Status: Proposed, for owner approval) |
 
 ## Verification
-Executed 2026-10-21 on Windows 11, Node 22.20.0, pnpm 12.9.1, TypeScript 6.0.3:
+Executed 2026-10-23 on Windows 11, Node 22, pnpm 12, TypeScript 6.0.3, Docker Desktop (Synapse 1.163.1, MongoDB 7):
 
-- `pnpm format:check` — pass. `pnpm lint` — pass (0 problems). `pnpm typecheck` — pass (packages, api, web, mobile, PoC).
-- `pnpm test` — 8 files, **84 tests pass** (design-tokens 36, logger 9, validation 5, api 14, web 9, poc 11).
-- `pnpm build` — pass.
-- API manual: no env → `api failed to start: Invalid environment configuration (1 issue): MONGODB_URI (missing)`; unreachable Mongo → `connect ECONNREFUSED`, exit 1; production with `CORS_ORIGINS=*` → refused.
-- Web manual (built-in browser, `pnpm --filter @cs/web dev`): layouts, theme, locale attributes as listed above. Offline banner verified by unit test (mocked `navigator.onLine`); not toggled manually (the browser pane has no network toggle). Console: no errors after removing `frame-ancestors` from the meta CSP (header-only directive).
-- CI run 39505423225 (first push) failed twice on first-run issues, fixed in `c01b3a2`: gitleaks flagged a literal Bearer probe header in the workflow (now built at runtime, historical literal allowlisted; local `gitleaks git` and `gitleaks dir` scans clean), and the inspector could not open the compose Synapse SQLite file in place (now inspected from a runner-owned copy). Run 39506556177: all four jobs green.
-- Not verified locally: the docker-compose environment (Docker absent on this machine).
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck` (now includes `apps/web/test/integration`) — pass.
+- `pnpm test` — 23 files, **174 tests pass**; the 3 integration files (9 tests) are skipped offline by design.
+- `HOMESERVER_URL=http://localhost:8008 ACCESS_TOKEN_LIFETIME_MS=10000 pnpm test:integration` with the local Synapse temporarily at `refreshable_access_token_lifetime: 10s` (restored to 5m afterwards) — 3 files, **9 tests pass** (about 20 s).
+- `pnpm build` — pass (packages, api, web, mobile).
+- Manual (built-in browser, `pnpm --filter @cs/web dev`): the two-origin checklist in `docs/runbooks/local-development.md` §8, steps 1–4, performed on account `@cs-alice-2310a:localhost` (throwaway local account): new-device notice, Verify → Review → Continue → identical emoji (🔔👍🏆🌙🐘☎️🐓) → "Device verified" on both, both lists Verified with matching fingerprints; revocation with password UIA → the other origin shows "Your session has expired" and keeps only an empty `cs-session` database; session restored on reload; wrong password → generic message. The recovery-key restore on a second device (step 5) was verified earlier in the same session (outcome `restored`, device Verified) before the verification screens existed.
+- Not run: CI on these commits (not pushed). Not performed manually: identity-change and backup-disabled notices (unit-tested only; they need a cross-signing reset, which the UI does not offer).
+
+## Phase 2 exit gate (IMPLEMENTATION_PLAN.md)
+| Criterion | Evidence |
+|---|---|
+| Registration and login work for valid users | integration + manual |
+| Invalid credentials and expired sessions are handled safely | generic error (integration, unit, manual); expiry → refresh or sign-in without content (integration, unit, manual revocation) |
+| Device identity and verification status are visible | device list with fingerprints and SDK-derived badges (unit, integration, manual); own identity panel |
+| Revoking a device prevents its subsequent authorized use as designed | revoked token `M_UNKNOWN_TOKEN`, client hard-logs out, stores wiped (integration, manual) |
+| No credentials or private keys appear in logs or ordinary database records | logger scrubber tests (Phase 1); the web client never writes to MongoDB; recovery key never persisted (unit asserts the holder is cleared; integration asserts `holder.has() === false` after setup); passwords live only in component state and UIA requests |
+| Authentication, authorization and session lifecycle tests pass | 174 unit + 9 integration locally; CI pending push |
+
+The gate is **satisfied locally**; it closes when the owner accepts the evidence and CI is green on the pushed tip.
 
 ## Blockers and risks
-- B2 resolved 2026-10-23: Docker Desktop installed; `init.mjs` and the compose environment proven on Windows by the owner's walkthrough.
-- **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5).
-- **R5 — Toolchain pins.** TypeScript is pinned to 6.0.3 because typescript-eslint rejects the TypeScript 7.0 API; revisit when typescript-eslint supports ≥7.1. pnpm needs `allowBuilds: { esbuild: true }`.
-- `pnpm audit` is advisory in CI until Phase 7; `uuid@7.0.3` deprecated subdependency noted at install.
+- **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5); the WebView key-storage question (TM-23) is untouched by Phase 2.
+- **R5 — Toolchain pins** (TypeScript 6.0.3 for typescript-eslint; pnpm `allowBuilds`).
+- **R6 — Web key storage is origin-scoped IndexedDB** (TM-11): production CSP and headers are Phase 4/7; disclosed in the privacy notes.
+- **R7 — Registration is open on the dev homeserver only**; real-user gating (token/invite, email) is Phase 7/8 (TM-13).
+- An unverified device that skipped the recovery key returns to the setup screen on every start until verified or restored (deliberate reminder; may need softening in Phase 4 UX review).
+- Verification notices cover the user's own devices only; other users' devices surface in Phase 3.
+- `pnpm audit` remains advisory until Phase 7.
 
 ## Deferred
 | Item | Reason | Risk while deferred |
 |---|---|---|
+| Sign out everywhere | Phase 4 settings (needs UIA; per-device revocation covers the need) | Low |
+| Other users' device verification in the UI; room-level "block unverified devices" | Phase 3 | Medium (messaging warnings depend on it) |
+| Playwright browser end-to-end tests | Phase 4 (Node integration + Testing Library cover Phase 2) | Low |
+| MFA, registration tokens / invite-only, email verification, CAPTCHA | Phases 7/8 | Medium before any real users |
+| Passphrase-protected secret storage | Not needed for the beta (recovery key only) | Low |
 | Native Android/iOS projects and device spike | Phase 5 (ADR-0001 C2) | Medium (documented fallback) |
-| Production CSP, real rate limits, monitoring | Phases 4/7 | Low |
-| Matrix SDK integration, auth, messaging UI, MongoDB collections | Phases 2/3/6 | n/a |
 
-## Decisions recorded 2026-10-21
-- **Phase 1 gate path: A — done.** The owner ran `docs/runbooks/local-development.md` on Windows with Docker Desktop (WSL2 backend) on 2026-10-23: passed. Gate closed the same day.
-- **Repository visibility: public (final).** (github.com/MSabbirHossen/communication-system). Consequence: CI logs and job summaries are visible only to signed-in users, so results are published as public check annotations; no secrets are committed (gitleaks in CI, history scanned clean). Revisit before any real-user beta (Phase 8) together with the human security review.
-- Still provisional: Capacitor for mobile (ADR-0001 C2); Phase 5 needs a real Android and iOS device test before it is final.
+## Decisions recorded 2026-10-23
+- **Recovery model:** recovery key + server-side encrypted key backup (owner decision); no account-password recovery in the beta (ADR-0003 D6).
+- **Multi-device at launch** with own-device emoji (SAS) verification (owner decision; ADR-0003 D7).
+- **Token model:** refresh tokens with 5-minute access tokens, refreshed by the app because the SDK refreshes only OAuth sessions (ADR-0003 D3).
+- **Hard logout wipes the device's stores; soft logout keeps them** (ADR-0003 D4).
+- Repository stays public (final, 2026-10-23); Capacitor for mobile remains provisional (ADR-0001 C2).
 
 ## Next approved action
-Produce the Phase 2 plan (plan mode, no code) and present it for approval. Implementation starts only after the owner approves the plan.
+Owner reviews the Phase 2 evidence and ADR-0003; on approval, push `main`, confirm the four CI jobs are green (the `dev-env` job now includes the integration tests), then close the gate here. Phase 3 (encrypted one-to-one messaging) starts only in plan mode after that.
 
 ## Last updated
 2026-10-23
