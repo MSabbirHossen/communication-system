@@ -94,7 +94,7 @@ Service-layer tests against your local Synapse (skipped when `HOMESERVER_URL` is
 HOMESERVER_URL=http://localhost:8008 pnpm test:integration
 ```
 
-Expected: 3 files, 9 tests pass (the expiry test is skipped unless `ACCESS_TOKEN_LIFETIME_MS` is set; CI sets it to `10000` after shortening `refreshable_access_token_lifetime` to `10s` in the generated `homeserver.yaml`).
+Expected: 5 files, 16 tests pass and 2 are skipped (the expiry and soft-logout tests run only when `ACCESS_TOKEN_LIFETIME_MS` is set; CI sets it to `10000` after shortening `refreshable_access_token_lifetime` to `10s` in the generated `homeserver.yaml`; to run them locally, set the same value in `infrastructure/synapse/data/homeserver.yaml`, restart Synapse, and restore `5m` afterwards). The messaging run writes `apps/web/test/integration/last-run.json`; pass it to the inspector with `--nonce-file` to confirm the server holds ciphertext only for that room.
 
 Manual two-device check in one browser (each hostname has its own storage, so it acts as a separate device):
 
@@ -104,7 +104,20 @@ Manual two-device check in one browser (each hostname has its own storage, so it
 4. On the first origin click **Sign out device** for the second device, confirm, and enter the password. The second origin drops to the sign-in screen with "Your session has expired"; in its DevTools → Application → IndexedDB only an empty `cs-session` database remains.
 5. Reload the first origin: the session is restored without signing in again. Sign in on the second origin with a wrong password: the message is "Sign-in failed. Check your username and password." (the same for an unknown user). Sign in again with the right password and enter the recovery key this time: "Your identity and encrypted history were restored on this device" and the device is Verified without an emoji comparison.
 
-## 9. Reset everything
+## 9. Phase 3: encrypted one-to-one messaging checks
+
+Two accounts in one browser, one per hostname (each has its own storage):
+
+1. On http://localhost:5173 create account A; on http://second.localhost:5173 create account B. Each shows its recovery key once; acknowledge it.
+2. On A: **People** → enter B's username → **Look up** → B's display name and identifier appear with the note that a name is not proof of identity → **Start encrypted conversation**. The conversation opens with the **Encrypted** badge, an **Unverified devices** warning, and the composer.
+3. On B: Chats shows an **Invitation** from A with Accept / Decline. Accept. Send a message each way: it shows **Sending…** then **Sent**; the other side shows it under a date separator. Enter sends, Shift+Enter adds a line.
+4. Offline: stop Synapse (`docker compose -f infrastructure/docker-compose.yml stop synapse`), send a message on A: it stays **Sending…** (or becomes **Not sent** with Retry / Delete after the SDK gives up). Start Synapse again: the message becomes **Sent** and B receives exactly one copy. A sync-error banner with **Retry now** appears on the list while the server is down.
+5. On A: **Details** → B's identity is **Identity not verified**, the conversation is **Encrypted**, and B's devices are listed with fingerprints and **Not verified**. **Verify this person** → on B a notice "Someone wants to verify their identity with you" → **Review** → **Continue** → both show the same emoji → **They match** on both → A's header shows **Identity verified** and B's device shows **Verified** in details.
+6. On B sign in on a third hostname (e.g. http://third.localhost:5173) without the recovery key: earlier messages show **Unable to decrypt** with the reason, new messages from A decrypt; A's header shows **Unverified devices** again.
+7. **Leave conversation** on B after confirmation: B's list no longer shows it.
+8. Invalid identifiers (`Bad Name!`, your own id) are rejected without a request; an unknown username reports "No account was found for".
+
+## 10. Reset everything
 
 ```bash
 pnpm dev:env:reset
@@ -112,7 +125,7 @@ pnpm dev:env:reset
 
 Deletes Synapse data and the MongoDB volume, then re-initialises.
 
-## 10. Environment boundaries
+## 11. Environment boundaries
 
 | `NODE_ENV` / `VITE_APP_ENV` | Behaviour |
 |---|---|
@@ -122,7 +135,7 @@ Deletes Synapse data and the MongoDB volume, then re-initialises.
 
 Production deployment (TLS, PostgreSQL for Synapse, secret management) is documented in later phases; this compose file is for development only.
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 - `docker: command not found`: install Docker Desktop and reopen the terminal.
 - Synapse never becomes healthy: `docker logs cs-synapse`; a wrong `UID/GID` in `infrastructure/.env` makes `/data` unwritable, rerun `pnpm dev:env:reset`.

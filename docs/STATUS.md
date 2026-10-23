@@ -1,83 +1,88 @@
 # Project Status
 
 ## Active phase
-Phase 3 — One-to-one encrypted messaging (**planning only; no implementation until the owner approves the plan**)
+Phase 3 — One-to-one encrypted messaging (**implemented, tested and verified locally; exit gate awaiting the owner's review; not pushed**)
 
 ## Last completed milestone
-**Phase 2 complete — exit gate accepted by the owner on 2026-10-23; ADR-0003 Accepted.** Eight planned commits plus one fix on local `main` on top of `89d9d3d` (the Phase 1 tip): session store and client factory `1ad0395`, registration and login `160cd97`, secure device setup with recovery key and key backup `585869e`, session lifecycle with app-driven token refresh `83c1a54`, device list and revocation `31175f5`, own-device SAS verification and security notices `a5e4908`, refresh-token config and integration tests in CI `cd7a2e7`, crypto-store wipe fix `33de740`, documentation `db2174a`, and two CI follow-ups: build-order fix `18f7a40` and integration-test annotations. **Pushed 2026-10-23.** First CI run 39929104030 failed in `pnpm build`: the mobile package rebuilt the web app concurrently with the workspace build and before the shared packages existed (reproduced in a Linux container; two concurrent bundles of matrix-js-sdk were killed). Fixed in `18f7a40`; run 39932188651 on that commit is green on all four jobs (checks, secrets-scan, dev-env with the Phase 2 integration tests, poc-e2ee).
+**Phase 2 complete — exit gate accepted by the owner on 2026-10-23; ADR-0003 Accepted.** CI green on `41491d4`. Phase 1 closed 2026-10-23; Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
 
-Phase 1 closed 2026-10-23 (CI run 39899908581 green on `9972177`; owner's runbook walkthrough passed). Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
+**Phase 3 implemented (2026-10-23)** as the seven planned commits plus fixes on local `main` on top of `41491d4`: conversation list and invitations `1648408`, start by identifier `5ae72d5` (+ `36d6ac2` test typing), conversation view with honest states `1dc666d`, pagination and private receipts `a81bc99`, recipient security and decryption explanations `3dd8e64`, verify a conversation partner `b8b1a69`, two-account integration tests and server inspection `7f33c7b`, soft-logout client rebuild `36f0443` (Phase 2 defect), live-sync readiness / invitation dates / load-older `bf05ac6`, verification-request line / history on open / offline start `588efaa`, and this documentation commit. **Not pushed**: the owner asked for a local report before pushing; CI has not run on these commits.
 
 ## Current task
-Phase 3 plan for owner approval (AGENTS.md step 2), checked against the Phase 3 exit gate in IMPLEMENTATION_PLAN.md. No Phase 3 code until approved.
+Owner review of the Phase 3 exit gate (evidence below) and ADR-0004; on approval, push and confirm CI (the `dev-env` job runs the Phase 3 integration tests and inspects the server for the run's nonce). No Phase 4 work has started.
 
-## Completed (Phase 2)
-Labels follow AGENTS.md §12. Unit = jsdom/Node tests without a network; integration = Node against the compose Synapse 1.163.1 (`pnpm test:integration`); manual = built-in browser against the local dev server, two origins (`localhost`, `second.localhost`) as two devices.
+## Completed (Phase 3)
+Labels follow AGENTS.md §12. Unit = jsdom/Node without a network; integration = Node against the compose Synapse 1.163.1 (`pnpm test:integration`); manual = built-in browser, two origins (`localhost`, `second.localhost`) as two accounts.
 
 | Deliverable | Status | Evidence |
 |---|---|---|
-| Session store (`cs-session` IndexedDB, versioned, no `localStorage`; explicit error when storage is unavailable) and Matrix client factory (per-device sync and Rust crypto stores) | Verified | unit (fake-indexeddb; store startup order; crypto prefix); manual (databases per device) |
-| Registration (UIA `m.login.dummy` only, else unsupported) and login with refresh tokens; generic invalid-credentials message; server-side username rejection; rate-limit retry-after surfaced | Verified | integration (register, login, wrong password = unknown user, taken and invalid usernames); unit (error mapping never includes free text); manual (wrong password message) |
-| Secure device setup: cross-signing (UIA password when required), secret storage with a recovery key shown once (copy/download/acknowledge), server-side key backup; additional device restores with the key (wrong key rejected, 5 attempts) or skips and stays unverified | Verified | integration (created; restored after a wrong key; skipped); manual (key shown once; restore on a second device; skip path) |
-| Session lifecycle: restore on start, proactive refresh 60 s before expiry, refresh before use, retry on network failure, soft logout → refresh + restart sync, hard logout → wipe stores and route to sign-in with "session expired", sign-out | Verified | unit (fake timers; dedupe; rejection → signed out); integration (expiry → `soft_logout` → refresh at a 10 s lifetime; used refresh token rejected; logout → `M_UNKNOWN_TOKEN`); manual (reload restores the session; `POST /refresh → 200` observed) |
-| Devices & security screen: current session first, fingerprints, Verified / Not verified / Unknown / No keys from SDK state only, rename, revoke with confirmation and password re-authentication (cancel changes nothing) | Verified | unit; integration (revoke needs the password; cancelled UIA leaves the device; revoked client observes a hard logout); manual (`DELETE /devices/<id>` 401 → UIA → 200; revoked tab lands on sign-in) |
-| Own-device verification (SAS `m.sas.v1`): request from the device list, incoming request notice, seven emoji compared with explicit match/mismatch, cancel keeps the warning, leaving the screen cancels | Verified | unit (flow state machine with a faked verifier; screen paths); integration (two Node clients: match → verified; mismatch → `m.mismatched_sas`, stays unverified); manual (two origins: identical emoji, both Verified afterwards) |
-| Security notices: new device on the account, master cross-signing key replaced (snapshot comparison, no false alarms on trust changes), key backup disabled, incoming verification request | Verified (new device, verification request) / Tested (identity change, backup disabled: unit only) | unit; manual (new-device and verification-request notices seen on the other origin) |
-| Hard logout wipes the device's crypto store (fix `33de740`: the SDK needs the per-device prefix) | Verified | unit (prefix asserted); manual (after revocation only the empty `cs-session` database remains; SDK log shows the per-device store removed) |
-| Dev Synapse refresh tokens (5 m access / 30 d refresh); CI dev-env job runs the integration tests at a 10 s access-token lifetime, fails if any test is skipped, and publishes the counts as annotations | Verified in CI | run 39932845775 on `546195b`: annotation `Test Files 3 passed (3); Tests 9 passed (9)` on Synapse 1.163.1; the step fails if any test is skipped |
-| ADR-0003 (storage, token model, logout semantics, setup and recovery model, "Verified" meaning, UIA, notices), THREAT_MODEL (TM-03/06/08/10 Verified, TM-11/16 updated, TM-24/25 added), runbook §8 Phase 2 checklist | Implemented | `docs/architecture/ADR-0003-identity-sessions-and-recovery.md` (Status: Proposed, for owner approval) |
+| Direct-conversation model from SDK state (m.direct, `is_direct`), list with previews, unread counts, search, invitations with Accept/Decline (never auto-joined), sync-error banner | Verified | unit (model, screen); integration (invite accepted and recorded on both sides); manual |
+| Start a conversation by exact identifier: local username or Matrix ID, invalid/self rejected without a request, profile lookup, display name shown as not proof of identity, existing room reused, encrypted invite-only room created | Verified | unit; integration; manual |
+| Conversation view: states from SDK send state (Pending / Sent / Not sent with Retry and Delete), date separators, undecryptable and unsupported placeholders, system lines, Enter/Shift+Enter composer, drafts | Verified | unit (every `EventStatus`, retry resends the same event, delete); integration (accepted sends); manual (Sending… → Sent both ways) |
+| No plaintext fallback: `sendText` refuses unless the room has an encryption state event and the backend reports encryption enabled; composer disabled otherwise; rooms created encrypted | Verified | unit; integration (unencrypted room refused, no message event stored; `fetchRoomEvent` shows `m.room.encrypted` without body); server inspection with the run's nonce (local: integration room 36 encrypted / 0 plaintext events, nonce absent from the DB file) |
+| History: `scrollback` while a back token exists and the creation event is not loaded; one page auto-loaded on open when few messages are loaded; scroll kept in place | Verified | unit; integration (30 messages paged in order, no duplicates, from a fresh sync); manual (full history after reload) |
+| Private read receipts (`m.read.private` only, after the conversation is open and visible) | Verified | unit (never `m.read`); integration (reader's unread count drops; sender sees no receipt) |
+| Recipient security: identity verified / changed / not verified and devices from SDK state; header badges; identity-change banner; details screen with explanations and Leave | Verified | unit; integration (unverified second device still receives; late device sees an undecryptable placeholder with a historical-message code); manual (Unverified devices → Identity verified; device Verified; Leave) |
+| Verify a conversation partner by in-room SAS; incoming requests as notices; request shown as a system line | Verified | unit; manual (seven identical emoji on both accounts, Identity verified on both; details updated) |
+| Offline: message stays Pending while the server is unreachable and becomes Sent after reconnect, received once; reconnection and replayed transaction ids create no duplicates | Verified | integration (sync failing then resumed; replayed txnId → same event); manual (Synapse stopped and restarted) |
+| Soft logout rebuilds the client on the same stores (Phase 2 defect: sync could not resume after a token refresh with crypto) | Verified | integration (fake-indexeddb stores, 10 s tokens: identity intact, sync running, encrypted send after rebuild); unit |
+| Readiness waits for the first live sync; invitations dated by their membership event; offline start uses cached readiness | Verified | unit; manual (reload after setup lands on Chats; invitation list no longer crashes) |
+| Integration harness: proactive token refresh for long-lived test clients under CI's 10 s lifetime; inspector `--nonce-file`; CI dev-env passes the nonce | Tested locally at 10 s (5 files, 18 tests) | `apps/web/test/integration/helpers.ts`, `poc/matrix-e2ee/src/inspect-server.mjs`, `.github/workflows/ci.yml`; **CI run pending push** |
+| ADR-0004, THREAT_MODEL (TM-03, TM-04, TM-13, TM-20; soft-logout defect), ADR-0003 D4 amendment, runbook §9 | Implemented | `docs/architecture/ADR-0004-direct-messaging.md` (Status: Proposed) |
 
 ## Verification
 Executed 2026-10-23 on Windows 11, Node 22, pnpm 12, TypeScript 6.0.3, Docker Desktop (Synapse 1.163.1, MongoDB 7):
 
-- `pnpm format:check`, `pnpm lint`, `pnpm typecheck` (now includes `apps/web/test/integration`) — pass.
-- `pnpm test` — 23 files, **174 tests pass**; the 3 integration files (9 tests) are skipped offline by design.
-- `HOMESERVER_URL=http://localhost:8008 ACCESS_TOKEN_LIFETIME_MS=10000 pnpm test:integration` with the local Synapse temporarily at `refreshable_access_token_lifetime: 10s` (restored to 5m afterwards) — 3 files, **9 tests pass** (about 20 s).
-- `pnpm build` — pass (packages, api, web, mobile).
-- Manual (built-in browser, `pnpm --filter @cs/web dev`): the two-origin checklist in `docs/runbooks/local-development.md` §8, steps 1–4, performed on account `@cs-alice-2310a:localhost` (throwaway local account): new-device notice, Verify → Review → Continue → identical emoji (🔔👍🏆🌙🐘☎️🐓) → "Device verified" on both, both lists Verified with matching fingerprints; revocation with password UIA → the other origin shows "Your session has expired" and keeps only an empty `cs-session` database; session restored on reload; wrong password → generic message. The recovery-key restore on a second device (step 5) was verified earlier in the same session (outcome `restored`, device Verified) before the verification screens existed.
-- CI: run 39929104030 (`db2174a`) failed in `pnpm build` (build-order race, see above); run 39932188651 (`18f7a40`) green on all four jobs; run 39932845775 (`546195b`, integration step hardened) green: checks, secrets-scan, dev-env (API `/ready` 200, PoC 31/31, inspection 8/8, integration 3 files / 9 tests passed on Synapse 1.163.1), poc-e2ee. https://github.com/MSabbirHossen/communication-system/actions/runs/39932845775
-- Not performed manually: identity-change and backup-disabled notices (unit-tested only; they need a cross-signing reset, which the UI does not offer).
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build` — pass at the tip.
+- `pnpm test` — 31 files, **278 tests pass**; 5 integration files (18 tests) skipped offline by design. One earlier full run had a single transient failure that two immediate reruns did not reproduce (not identified; noted as a flake to watch in CI).
+- `HOMESERVER_URL=http://localhost:8008 ACCESS_TOKEN_LIFETIME_MS=10000 pnpm test:integration` with the local Synapse at a 10 s access-token lifetime (restored to 5 m afterwards) — 5 files, **18 tests pass** (about 47 s): Phase 2 (9) and Phase 3 (messaging 8, session soft logout 1).
+- `pnpm poc` 31/31, then `pnpm poc:inspect -- --db <copy> --nonce-file apps/web/test/integration/last-run.json` — 8/8 including "integration room holds encrypted events only — 45 events, 36 m.room.encrypted, 0 m.room.message".
+- Manual (runbook §9, accounts `p3-alice` on localhost and `p3-bob` on second.localhost, throwaway): start by username with display-name check; invitation accepted; messages both ways Sending… → Sent and decrypted on the other side; details show identity and device state; in-room verification with identical emoji → Identity verified on both and the device Verified; Synapse stopped: message Pending, after restart Sent and received exactly once; Leave on B → A shows "Left the conversation." and B's list is empty; reload after setup lands on Chats; history auto-loaded after reload. Not observed in the manual window: the list's sync-error banner (the long poll had not yet failed when checked; unit and integration cover the state), the mismatch path and a third device (unit and integration cover both).
+- CI: not run on these commits (not pushed).
 
-## Phase 2 exit gate (IMPLEMENTATION_PLAN.md)
+## Phase 3 exit gate (IMPLEMENTATION_PLAN.md)
 | Criterion | Evidence |
 |---|---|
-| Registration and login work for valid users | integration + manual |
-| Invalid credentials and expired sessions are handled safely | generic error (integration, unit, manual); expiry → refresh or sign-in without content (integration, unit, manual revocation) |
-| Device identity and verification status are visible | device list with fingerprints and SDK-derived badges (unit, integration, manual); own identity panel |
-| Revoking a device prevents its subsequent authorized use as designed | revoked token `M_UNKNOWN_TOKEN`, client hard-logs out, stores wiped (integration, manual) |
-| No credentials or private keys appear in logs or ordinary database records | logger scrubber tests (Phase 1); the web client never writes to MongoDB; recovery key never persisted (unit asserts the holder is cleared; integration asserts `holder.has() === false` after setup); passwords live only in component state and UIA requests |
-| Authentication, authorization and session lifecycle tests pass | 174 unit + 9 integration locally; CI runs 39932188651 and 39932845775 green |
+| Two separate accounts can exchange encrypted messages | integration + manual |
+| The recipient can decrypt messages on an authorized device | integration (first device) + manual |
+| Server-side inspection confirms ordinary message content remains encrypted | `fetchRoomEvent` ciphertext (integration) + inspector with the integration nonce (local; CI on push) |
+| Reconnection and synchronization do not create unintended duplicates | integration (offline catch-up, replayed txnId, pagination) + manual offline send |
+| Pagination and error states work | integration (paging) + unit/screen (loading, empty, offline, sync error, failed send, not found) + manual |
+| Unverified-device and undecryptable-message cases are tested | integration (unverified second device; late device undecryptable) + unit (wording per code) |
+| No plaintext fallback is possible | unit (refusal, disabled composer) + integration (unencrypted room refused before any request) + inspection |
 
-Gate **closed 2026-10-23**: evidence accepted by the owner; ADR-0003 Accepted.
+The gate is **satisfied locally**; it closes when the owner accepts the evidence and ADR-0004 and CI is green on the pushed tip.
 
 ## Blockers and risks
-- **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5); the WebView key-storage question (TM-23) is untouched by Phase 2.
-- **R5 — Toolchain pins** (TypeScript 6.0.3 for typescript-eslint; pnpm `allowBuilds`).
-- **R6 — Web key storage is origin-scoped IndexedDB** (TM-11): production CSP and headers are Phase 4/7; disclosed in the privacy notes.
-- **R7 — Registration is open on the dev homeserver only**; real-user gating (token/invite, email) is Phase 7/8 (TM-13).
-- An unverified device that skipped the recovery key returns to the setup screen on every start until verified or restored (deliberate reminder; may need softening in Phase 4 UX review).
-- Verification notices cover the user's own devices only; other users' devices surface in Phase 3.
-- `pnpm audit` remains advisory until Phase 7.
+- **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5).
+- **R5 — Toolchain pins** (TypeScript 6.0.3; pnpm `allowBuilds`).
+- **R6 — Web key storage is origin-scoped IndexedDB** (TM-11); production CSP Phase 4/7.
+- **R7 — Registration open on the dev homeserver only**; gating is Phase 7/8.
+- **R8 — Pending (unsent) messages live in memory**: a full reload while offline loses a message that was still Pending (the SDK can persist the queue with detached pending-event ordering; deferred).
+- **R9 — Recipient's unverified devices read new messages** until the user acts on the warning (owner decision, ADR-0004 D7; disclosed).
+- Two direct rooms can exist with the same person after simultaneous starts; both are listed.
+- A reload during the first five minutes after setup used to return to the setup screen (fixed `bf05ac6`); the SDK's sync cache is saved periodically, so other cache-age effects may surface in Phase 4 testing.
 
 ## Deferred
 | Item | Reason | Risk while deferred |
 |---|---|---|
-| Sign out everywhere | Phase 4 settings (needs UIA; per-device revocation covers the need) | Low |
-| Other users' device verification in the UI; room-level "block unverified devices" | Phase 3 | Medium (messaging warnings depend on it) |
-| Playwright browser end-to-end tests | Phase 4 (Node integration + Testing Library cover Phase 2) | Low |
-| MFA, registration tokens / invite-only, email verification, CAPTCHA | Phases 7/8 | Medium before any real users |
-| Passphrase-protected secret storage | Not needed for the beta (recovery key only) | Low |
-| Native Android/iOS projects and device spike | Phase 5 (ADR-0001 C2) | Medium (documented fallback) |
+| Persisted send queue across reloads | Needs the SDK's detached pending-event ordering and store support; Phase 4 | Medium (lost offline message after a reload) |
+| Public read receipts, preview setting, presence, typing | Privacy settings (Phase 4/6) | Low |
+| Directory search with discoverability controls | Phase 6 | Low |
+| Blocking and reporting from conversation details | Phase 6 | Medium before real users |
+| Media, edits, deletions, reactions, group rooms | Later releases (PRD §6.2) | n/a |
+| Playwright browser end-to-end tests | Phase 4 | Low |
+| Native Android/iOS projects and device spike | Phase 5 (ADR-0001 C2) | Medium |
 
 ## Decisions recorded 2026-10-23
-- **Recovery model:** recovery key + server-side encrypted key backup (owner decision); no account-password recovery in the beta (ADR-0003 D6).
-- **Multi-device at launch** with own-device emoji (SAS) verification (owner decision; ADR-0003 D7).
-- **Token model:** refresh tokens with 5-minute access tokens, refreshed by the app because the SDK refreshes only OAuth sessions (ADR-0003 D3).
-- **Hard logout wipes the device's stores; soft logout keeps them** (ADR-0003 D4).
-- Repository stays public (final, 2026-10-23); Capacitor for mobile remains provisional (ADR-0001 C2).
+- **Read receipts private by default** (owner): `m.read.private` only; no Read state shown (ADR-0004 D5).
+- **Unverified devices receive messages, with warnings** (owner): no blocklisting (ADR-0004 D7).
+- **Conversations start from an exact identifier only** (owner): no directory search until Phase 6 (ADR-0004 D3).
+- **Invitations are never auto-joined** (ADR-0004 D2); **one room per pair, encrypted from creation** (D1); **states from the SDK only, no Delivered** (D4).
+- **Soft logout rebuilds the client on the same stores** (ADR-0004 D11, amends ADR-0003 D4).
 
 ## Next approved action
-Produce the Phase 3 plan (plan mode, no code) and present it for approval. Implementation starts only after the owner approves the plan.
+Owner reviews the Phase 3 evidence and ADR-0004; on approval, push `main`, confirm the four CI jobs are green (dev-env now runs the Phase 3 integration tests and the nonce inspection), then close the gate here. Phase 4 (complete web experience) starts only in plan mode after that.
 
 ## Last updated
 2026-10-23
