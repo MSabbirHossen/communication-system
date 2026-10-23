@@ -16,6 +16,7 @@
     "@cs/logger": "workspace:*",
     "@cs/shared-types": "workspace:*",
     "@cs/validation": "workspace:*",
+    "@matrix-org/matrix-sdk-crypto-wasm": "18.9.0",
     "matrix-js-sdk": "44.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",

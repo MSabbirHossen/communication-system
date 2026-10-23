@@ -290,3 +290,34 @@ code {
   font-family: var(--cs-font-family-mono);
   font-size: 0.9em;
 }
+
+/* Secure device setup */
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: var(--cs-space-4) 0;
+  text-align: start;
+  display: grid;
+  gap: var(--cs-space-2);
+}
+.step {
+  padding: var(--cs-space-2) var(--cs-space-3);
+  border-radius: var(--cs-radius-md);
+  border: var(--cs-size-border-width) solid var(--cs-color-border);
+  color: var(--cs-color-text-muted);
+}
+.step--current {
+  color: var(--cs-color-text);
+  border-color: var(--cs-color-primary);
+}
+.step--done {
+  color: var(--cs-color-success);
+}
+.recovery-key {
+  padding: var(--cs-space-3);
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-bg);
+  border: var(--cs-size-border-width) solid var(--cs-color-border);
+  word-break: break-all;
+  user-select: all;
+}

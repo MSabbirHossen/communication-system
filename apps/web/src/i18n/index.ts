@@ -85,6 +85,46 @@ const en = {
   "auth.error.server": "The server had a problem. Try again in a moment.",
   "auth.error.unknown": "Something went wrong. Try again.",
 
+  // Secure device setup (UI brief §6.3)
+  "setup.title": "Secure this device",
+  "setup.intro":
+    "Signing in is done. Now this device gets its own encryption identity so your messages can only be read on devices you control.",
+  "setup.progress": "Setup progress",
+  "setup.step.checking": "Checking this device",
+  "setup.step.cross_signing": "Creating your account's identity",
+  "setup.step.secret_storage": "Protecting your keys with a recovery key",
+  "setup.step.key_backup": "Enabling encrypted message backup",
+  "setup.password.why":
+    "The server asks you to confirm your password before this device can publish your identity keys.",
+  "setup.password.submit": "Confirm",
+  "setup.cancel": "Cancel",
+  "setup.restore.why":
+    "This account was already set up on another device. Enter your recovery key to restore your identity and encrypted history here, or verify this device from one of your other devices instead.",
+  "setup.restore.keyLabel": "Recovery key",
+  "setup.restore.hint": "The key you saved when you set up your first device. Spaces are ignored.",
+  "setup.restore.invalid":
+    "That recovery key is not valid for this account. Check it and try again.",
+  "setup.restore.submit": "Restore",
+  "setup.restore.skip": "I don't have it — verify from another device",
+  "setup.key.why":
+    "This recovery key is the only way to restore your encrypted history on a new device. Save it somewhere safe, outside this browser.",
+  "setup.key.warning":
+    "If you lose this key and all your devices, your message history cannot be recovered by anyone, including us.",
+  "setup.key.label": "Your recovery key",
+  "setup.key.copy": "Copy",
+  "setup.key.copied": "Copied",
+  "setup.key.download": "Download as text file",
+  "setup.key.confirm": "I have saved my recovery key",
+  "setup.continue": "Continue",
+  "setup.retry": "Try again",
+  "setup.failed.cancelled":
+    "Setup was cancelled. This device cannot send encrypted messages until setup completes.",
+  "setup.done.ready":
+    "This device is set up. Your recovery key is saved and encrypted backup is on.",
+  "setup.done.restored": "Your identity and encrypted history were restored on this device.",
+  "setup.done.unverified":
+    "This device is signed in but not yet verified. Verify it from one of your other devices (Settings → Devices) to use it for encrypted messages with full trust.",
+
   // Privacy notes (placeholder for the Phase 8 disclosure)
   "privacy.title": "Privacy notes",
   "privacy.e2ee":

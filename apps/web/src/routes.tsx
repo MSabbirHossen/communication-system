@@ -9,7 +9,8 @@ import {
   WelcomeScreen,
 } from "./screens";
 import { LoginScreen, PrivacyScreen, RegisterScreen } from "./screens/auth";
-import { RedirectIfSignedIn, RequireSession } from "./session/SessionProvider";
+import { SecureDeviceSetupScreen } from "./screens/SecureDeviceSetup";
+import { RedirectIfSignedIn, RequireClient, RequireSession } from "./session/SessionProvider";
 
 export const routes: RouteObject[] = [
   {
@@ -40,6 +41,11 @@ export const routes: RouteObject[] = [
     errorElement: <RouteErrorScreen />,
   },
   { path: "/privacy", element: <PrivacyScreen />, errorElement: <RouteErrorScreen /> },
+  {
+    element: <RequireClient />,
+    errorElement: <RouteErrorScreen />,
+    children: [{ path: "/setup", element: <SecureDeviceSetupScreen /> }],
+  },
   {
     element: <RequireSession />,
     errorElement: <RouteErrorScreen />,

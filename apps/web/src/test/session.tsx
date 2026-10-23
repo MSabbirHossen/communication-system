@@ -4,6 +4,7 @@ import { RouterProvider } from "react-router";
 import { vi } from "vitest";
 import type { MatrixClient } from "../matrix/client";
 import type { StoredSession } from "../matrix/sessionStore";
+import { SecretStorageKeyHolder } from "../matrix/recoveryKey";
 import { createTestRouter } from "../routes";
 import { SessionController, type SessionDeps } from "../session/controller";
 import { SessionProvider } from "../session/SessionProvider";
@@ -36,6 +37,14 @@ export function fakeDeps(overrides: Partial<SessionDeps> = {}): SessionDeps {
   const deps: SessionDeps = {
     homeserverUrl: "http://localhost:8008",
     logger: silentLogger() as unknown as SessionDeps["logger"],
+    keyHolder: new SecretStorageKeyHolder(),
+    getCryptoReadiness: vi.fn(async () => ({
+      crossSigningReady: true,
+      secretStorageReady: true,
+      keyBackupEnabled: true,
+      accountHasCrossSigning: true,
+    })),
+    ensureCryptoReady: vi.fn(async () => ({ outcome: "already_ready" as const })),
     loadSession: vi.fn(async () => null),
     saveSession: vi.fn(async () => {}),
     clearSession: vi.fn(async () => {}),

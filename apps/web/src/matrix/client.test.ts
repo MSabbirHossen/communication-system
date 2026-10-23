@@ -7,18 +7,33 @@ const mocks = vi.hoisted(() => {
   const startClient = vi.fn(async () => {});
   const stopClient = vi.fn();
   const clearStores = vi.fn(async () => {});
+  const listeners = new Map<string, (s: string) => void>();
   const createClient = vi.fn((_opts: Record<string, unknown>) => ({
     initRustCrypto,
     startClient,
     stopClient,
     clearStores,
+    getSyncState: () => null,
+    on: (ev: string, fn: (s: string) => void) => listeners.set(ev, fn),
+    removeListener: (ev: string) => listeners.delete(ev),
   }));
   const setLevel = vi.fn();
-  return { startup, initRustCrypto, startClient, stopClient, clearStores, createClient, setLevel };
+  return {
+    startup,
+    initRustCrypto,
+    startClient,
+    stopClient,
+    clearStores,
+    createClient,
+    setLevel,
+    listeners,
+  };
 });
 
 vi.mock("matrix-js-sdk", () => ({
   createClient: mocks.createClient,
+  ClientEvent: { Sync: "sync" },
+  SyncState: { Prepared: "PREPARED", Syncing: "SYNCING" },
   IndexedDBStore: class {
     opts: unknown;
     constructor(opts: unknown) {
@@ -60,6 +75,10 @@ describe("createMatrixClient", () => {
 
     expect(mocks.setLevel).toHaveBeenCalledWith("silent");
     expect(mocks.startup).toHaveBeenCalledTimes(1);
+    // The SDK requires startup() after the store is assigned to a client.
+    expect(mocks.createClient.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.startup.mock.invocationCallOrder[0]!,
+    );
     const args = mocks.createClient.mock.calls[0]![0];
     expect(args.baseUrl).toBe("http://localhost:8008");
     expect(args.userId).toBe("@alice:localhost");
@@ -100,8 +119,10 @@ describe("createMatrixClient", () => {
       indexedDB: {} as IDBFactory,
       sdkLogLevel: "silent",
     });
-    await startSync(client, { initialSyncLimit: 5, pollTimeout: 1000 });
+    const syncing = startSync(client, { initialSyncLimit: 5, pollTimeout: 1000 });
     expect(mocks.startClient).toHaveBeenCalledWith({ initialSyncLimit: 5, pollTimeout: 1000 });
+    mocks.listeners.get("sync")!("PREPARED"); // first sync lands → startSync resolves
+    await syncing;
     await stopAndClearClient(client);
     expect(mocks.stopClient).toHaveBeenCalled();
     expect(mocks.clearStores).toHaveBeenCalled();

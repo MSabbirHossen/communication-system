@@ -121,4 +121,49 @@ describe("SessionController", () => {
       error: { code: "storage_unavailable" },
     });
   });
+
+  it("surfaces a client start failure after authentication as an error state", async () => {
+    const deps = fakeDeps({
+      createMatrixClient: vi.fn(async () => {
+        throw new Error("WebAssembly.instantiateStreaming(): blocked by CSP");
+      }),
+    });
+    const c = new SessionController(deps);
+    await c.boot();
+    await c.signIn({ username: "alice", password: "correct horse battery" });
+    expect(deps.saveSession).toHaveBeenCalled(); // the account/session is kept
+    expect(c.getSnapshot().status).toBe("error");
+    const logged = JSON.stringify((deps.logger.error as ReturnType<typeof vi.fn>).mock.calls);
+    expect(logged).toContain("instantiateStreaming");
+    expect(logged).not.toContain("correct horse battery");
+  });
+
+  it("routes to secure device setup when the device is not ready, then to ready after setup", async () => {
+    const deps = fakeDeps({
+      loadSession: vi.fn(async () => testSession),
+      getCryptoReadiness: vi.fn(async () => ({
+        crossSigningReady: false,
+        secretStorageReady: false,
+        keyBackupEnabled: false,
+        accountHasCrossSigning: false,
+      })),
+      ensureCryptoReady: vi.fn(async (_c, _h, prompts) => {
+        const pw = await prompts.requestPassword();
+        expect(pw).toBe("pw");
+        await prompts.showRecoveryKey("EsTc test key");
+        return { outcome: "created" as const, keyBackupEnabled: true };
+      }),
+    });
+    const c = new SessionController(deps);
+    await c.boot();
+    expect(c.getSnapshot().status).toBe("crypto_setup");
+    const run = c.runSetup();
+    await vi.waitFor(() => expect(c.getSnapshot().setup.phase).toBe("need_password"));
+    c.submitSetupPassword("pw");
+    await vi.waitFor(() => expect(c.getSnapshot().setup.phase).toBe("show_recovery_key"));
+    c.acknowledgeRecoveryKey();
+    await run;
+    expect(c.getSnapshot().status).toBe("ready");
+    expect(c.getSnapshot().setup).toMatchObject({ phase: "done", outcome: { outcome: "created" } });
+  });
 });

@@ -47,7 +47,6 @@ export async function createMatrixClient(
   const store = idb
     ? new sdk.IndexedDBStore({ indexedDB: idb, dbName: `cs-sync-${session.deviceId}` })
     : new sdk.MemoryStore();
-  await store.startup();
 
   const client = sdk.createClient({
     baseUrl: session.homeserverUrl,
@@ -66,6 +65,8 @@ export async function createMatrixClient(
     timelineSupport: true,
     useAuthorizationHeader: true,
   });
+  // The SDK requires the store to be assigned to a client before startup() is called.
+  await store.startup();
 
   if (idb) {
     await client.initRustCrypto({ cryptoDatabasePrefix: `cs-crypto-${session.deviceId}` });
@@ -78,12 +79,37 @@ export async function createMatrixClient(
 export interface StartSyncOptions {
   initialSyncLimit?: number;
   pollTimeout?: number;
+  /** How long to wait for the first sync before continuing anyway (offline start). */
+  firstSyncTimeoutMs?: number;
 }
 
+/**
+ * Start syncing and wait for the first sync to land (or time out), so that readiness
+ * checks that depend on server state (cross-signing keys, device lists) are meaningful.
+ */
 export async function startSync(client: sdk.MatrixClient, o: StartSyncOptions = {}): Promise<void> {
+  const firstSync = waitForFirstSync(client, o.firstSyncTimeoutMs ?? 20_000);
   await client.startClient({
     initialSyncLimit: o.initialSyncLimit ?? 20,
     pollTimeout: o.pollTimeout ?? 30_000,
+  });
+  await firstSync;
+}
+
+function waitForFirstSync(client: sdk.MatrixClient, timeoutMs: number): Promise<void> {
+  const state = client.getSyncState();
+  if (state === sdk.SyncState.Prepared || state === sdk.SyncState.Syncing) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      client.removeListener(sdk.ClientEvent.Sync, onSync);
+      resolve();
+    };
+    const onSync = (s: sdk.SyncState) => {
+      if (s === sdk.SyncState.Prepared || s === sdk.SyncState.Syncing) done();
+    };
+    const timer = setTimeout(done, timeoutMs);
+    client.on(sdk.ClientEvent.Sync, onSync);
   });
 }
 

@@ -7,6 +7,8 @@ import { setLocale } from "./i18n";
 import { makeLogger } from "./lib/logger";
 import { login, logoutRemote, register } from "./matrix/auth";
 import { createMatrixClient, startSync, stopAndClearClient } from "./matrix/client";
+import { ensureCryptoReady, getCryptoReadiness } from "./matrix/cryptoSetup";
+import { SecretStorageKeyHolder } from "./matrix/recoveryKey";
 import { clearSession, loadSession, saveSession } from "./matrix/sessionStore";
 import { createAppRouter } from "./routes";
 import { SessionController } from "./session/controller";
@@ -25,6 +27,9 @@ try {
   const controller = new SessionController({
     homeserverUrl: env.homeserverUrl,
     logger: logger.child("session"),
+    keyHolder: new SecretStorageKeyHolder(),
+    getCryptoReadiness,
+    ensureCryptoReady,
     loadSession: () => loadSession(),
     saveSession: (s) => saveSession(s),
     clearSession: () => clearSession(),

@@ -115,6 +115,9 @@ importers:
       '@cs/validation':
         specifier: workspace:*
         version: link:../../packages/validation
+      '@matrix-org/matrix-sdk-crypto-wasm':
+        specifier: 18.9.0
+        version: 18.9.0
       matrix-js-sdk:
         specifier: 44.0.0
         version: 44.0.0
