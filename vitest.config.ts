@@ -14,6 +14,17 @@ export default defineConfig({
           environment: "node",
         },
       },
+      // Phase 2 service-layer tests against a real homeserver (skipped unless
+      // HOMESERVER_URL is set): `pnpm test:integration` with the compose Synapse running.
+      {
+        test: {
+          name: "web-integration",
+          include: ["apps/web/test/integration/**/*.test.ts"],
+          environment: "node",
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
+        },
+      },
     ],
   },
 });

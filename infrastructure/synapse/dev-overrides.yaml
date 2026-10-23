@@ -14,3 +14,8 @@ rc_login:
 rc_message:
   per_second: 100
   burst_count: 100
+# Refresh tokens (MSC2918). Clients that ask for a refresh token at login get a short-lived
+# access token and must refresh it; stolen access tokens therefore expire quickly
+# (THREAT_MODEL TM-06). CI shortens the access-token lifetime to exercise expiry.
+refreshable_access_token_lifetime: 5m
+refresh_token_lifetime: 30d

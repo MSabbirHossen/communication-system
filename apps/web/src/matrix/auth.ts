@@ -164,6 +164,13 @@ export async function refreshSession(
       accessTokenExpiresAt: now + resp.expires_in_ms,
     };
   } catch (err) {
+    // A refresh token the server no longer accepts (used, revoked, expired) answers
+    // M_FORBIDDEN or M_UNKNOWN_TOKEN: the session is over, not a credentials problem.
+    if (
+      err instanceof MatrixError &&
+      (err.errcode === "M_FORBIDDEN" || err.errcode === "M_UNKNOWN_TOKEN")
+    )
+      throw new AuthFailure({ code: "session_expired", detail: err.errcode });
     throw new AuthFailure(toAuthError(err));
   }
 }

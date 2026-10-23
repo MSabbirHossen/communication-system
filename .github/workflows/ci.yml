@@ -47,7 +47,7 @@ jobs:
     # the init script, the API reaching readiness against Mongo, and the Phase 0
     # PoC passing against the compose Synapse. Results are published as check
     # annotations (public) because logs and summaries need a sign-in.
-    name: Dev environment (compose + API readiness + PoC)
+    name: Dev environment (compose + API readiness + PoC + Phase 2 integration tests)
     runs-on: ubuntu-latest
     needs: checks
     steps:
@@ -65,7 +65,12 @@ jobs:
         run: docker compose -f infrastructure/docker-compose.yml config --quiet
 
       - name: Initialise Synapse config (init script)
-        run: node infrastructure/synapse/init.mjs
+        run: |
+          set -euo pipefail
+          node infrastructure/synapse/init.mjs
+          # CI only: 10-second access tokens so the integration tests exercise expiry and refresh.
+          sed -i 's/^refreshable_access_token_lifetime: 5m$/refreshable_access_token_lifetime: 10s/' infrastructure/synapse/data/homeserver.yaml
+          grep -nE '^(refreshable_access_token_lifetime|refresh_token_lifetime):' infrastructure/synapse/data/homeserver.yaml
 
       - name: Start services
         run: |
@@ -123,6 +128,14 @@ jobs:
         env:
           HOMESERVER_URL: http://localhost:8008
 
+      - name: Phase 2 integration tests (web service layer against the compose Synapse)
+        run: |
+          set -o pipefail
+          pnpm test:integration 2>&1 | tee "$RUNNER_TEMP/integration.log"
+        env:
+          HOMESERVER_URL: http://localhost:8008
+          ACCESS_TOKEN_LIFETIME_MS: "10000"
+
       - name: Inspect the compose Synapse database and log for plaintext
         run: |
           set -o pipefail
@@ -146,6 +159,12 @@ jobs:
             grep -E '^(FAIL|ERROR)' "$RUNNER_TEMP/poc.log" | head -n 8 | while IFS= read -r l; do echo "::error title=poc::$l"; done
           else
             echo "::error title=poc::PoC did not run"
+          fi
+          if [ -f "$RUNNER_TEMP/integration.log" ]; then
+            echo "::notice title=integration::$(grep -E 'Tests +[0-9]+ ' "$RUNNER_TEMP/integration.log" | tail -n 1 | sed 's/^ *//')"
+            grep -E '^ *(×|✗|FAIL) ' "$RUNNER_TEMP/integration.log" | head -n 8 | while IFS= read -r l; do echo "::error title=integration::$l"; done
+          else
+            echo "::error title=integration::integration tests did not run"
           fi
           if [ -f "$RUNNER_TEMP/inspect.log" ]; then
             echo "::notice title=inspect::$(grep -E '^==' "$RUNNER_TEMP/inspect.log" | tail -n 1)"
@@ -174,6 +193,7 @@ jobs:
             poc/matrix-e2ee/last-run.json
             ${{ runner.temp }}/poc.log
             ${{ runner.temp }}/inspect.log
+            ${{ runner.temp }}/integration.log
             ${{ runner.temp }}/api.log
             ${{ runner.temp }}/synapse-container.log
           if-no-files-found: ignore
