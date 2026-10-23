@@ -1,13 +1,20 @@
 # Project Status
 
 ## Active phase
-Phase 1 — Repository, environments and application foundation (**implemented, pushed, CI green; exit gate pending the owner's local runbook walkthrough**)
+Phase 2 — Identity, authentication and device security (**planning only; no implementation until the owner approves the plan**)
 
 ## Last completed milestone
-Phase 0 complete and approved with conditions (2026-10-20): ADR-0001 Accepted; E2EE PoC verified locally (Synapse 1.67.0) and in CI (Synapse 1.163.0), 31/31 client checks and 8/8 server-inspection checks.
+**Phase 1 complete — exit gate closed 2026-10-23.** Both halves satisfied: CI green on the tip of `main` (run 39899908581 at `9972177`: checks, secrets-scan, dev-env and poc-e2ee all green; dev-env on Synapse 1.163.1 with API `/ready` 200, PoC 31/31, inspection 8/8) and the owner's local walkthrough of `docs/runbooks/local-development.md` on Windows with Docker Desktop (WSL2 backend), reported passed with no errors.
+
+Owner commits made during the walkthrough, outside the agent session (reconciled 2026-10-23):
+- `37c3241`, `485f8f5` `infrastructure/synapse/init.mjs`: spawn `docker` without a shell on every platform and handle spawn errors explicitly (the shell-on-Windows path was unnecessary with Docker Desktop on PATH); clearer "start Docker Desktop" message.
+- `9972177` `poc/matrix-e2ee/src/inspect-server.mjs`: resolve relative `--db`/`--log` paths against `INIT_CWD` and the workspace root, so `pnpm poc:inspect -- --db infrastructure/synapse/data/homeserver.db` works from the repo root as the runbook says. Absolute paths (used by CI) are unchanged.
+- CI history: run 39897001091 on `37c3241` failed `format:check` (Prettier), fixed in the following commits; run 39899908581 on the tip is green. Local re-check on the tip the same day: format, lint, typecheck and 84 tests pass.
+
+Phase 0 complete and approved with conditions (2026-10-20): ADR-0001 Accepted; E2EE PoC verified locally (Synapse 1.67.0) and in CI (Synapse 1.163.0/1.163.1).
 
 ## Current task
-Phase 1 exit-gate review. Code is on `main` (commits `5584fd5`…`c01b3a2`); CI run 39506556177 is green on all four jobs. Remaining gate item: the owner runs `docs/runbooks/local-development.md` on this machine after installing Docker Desktop.
+Phase 2 plan for owner approval (AGENTS.md step 2), checked against the Phase 2 exit gate in IMPLEMENTATION_PLAN.md. No Phase 2 code until approved.
 
 ## Completed (Phase 1)
 Labels follow AGENTS.md §12.
@@ -39,7 +46,7 @@ Executed 2026-10-21 on Windows 11, Node 22.20.0, pnpm 12.9.1, TypeScript 6.0.3:
 - Not verified locally: the docker-compose environment (Docker absent on this machine).
 
 ## Blockers and risks
-- **B2 — Docker Desktop not installed locally.** The compose environment and `init.mjs` are proven in CI (Linux runner) but not on this Windows machine; the owner's runbook walkthrough is the remaining exit-gate item. Risk: Windows-specific issues in `init.mjs` (uid/gid defaults, path mounting).
+- B2 resolved 2026-10-23: Docker Desktop installed; `init.mjs` and the compose environment proven on Windows by the owner's walkthrough.
 - **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5).
 - **R5 — Toolchain pins.** TypeScript is pinned to 6.0.3 because typescript-eslint rejects the TypeScript 7.0 API; revisit when typescript-eslint supports ≥7.1. pnpm needs `allowBuilds: { esbuild: true }`.
 - `pnpm audit` is advisory in CI until Phase 7; `uuid@7.0.3` deprecated subdependency noted at install.
@@ -47,18 +54,17 @@ Executed 2026-10-21 on Windows 11, Node 22.20.0, pnpm 12.9.1, TypeScript 6.0.3:
 ## Deferred
 | Item | Reason | Risk while deferred |
 |---|---|---|
-| Local compose run and runbook walkthrough on this machine | Docker not installed | Low: `dev-env` proves the steps on Linux; owner to run after installing Docker Desktop |
 | Native Android/iOS projects and device spike | Phase 5 (ADR-0001 C2) | Medium (documented fallback) |
 | Production CSP, real rate limits, monitoring | Phases 4/7 | Low |
 | Matrix SDK integration, auth, messaging UI, MongoDB collections | Phases 2/3/6 | n/a |
 
 ## Decisions recorded 2026-10-21
-- **Phase 1 gate path: A.** The owner installs Docker Desktop (WSL2 backend) and follows `docs/runbooks/local-development.md` on the Windows development machine; the gate closes on that result, not on CI alone. Status: in progress (owner).
-- **Repository visibility: stays public** (github.com/MSabbirHossen/communication-system). Consequence: CI logs and job summaries are visible only to signed-in users, so results are published as public check annotations; no secrets are committed (gitleaks in CI, history scanned clean). Revisit before any real-user beta (Phase 8) together with the human security review.
+- **Phase 1 gate path: A — done.** The owner ran `docs/runbooks/local-development.md` on Windows with Docker Desktop (WSL2 backend) on 2026-10-23: passed. Gate closed the same day.
+- **Repository visibility: public (final).** (github.com/MSabbirHossen/communication-system). Consequence: CI logs and job summaries are visible only to signed-in users, so results are published as public check annotations; no secrets are committed (gitleaks in CI, history scanned clean). Revisit before any real-user beta (Phase 8) together with the human security review.
 - Still provisional: Capacitor for mobile (ADR-0001 C2); Phase 5 needs a real Android and iOS device test before it is final.
 
 ## Next approved action
-Owner installs Docker Desktop and follows `docs/runbooks/local-development.md`; on success the owner approves the Phase 1 exit gate. Phase 2 (identity, authentication and device security) does not start before that approval.
+Produce the Phase 2 plan (plan mode, no code) and present it for approval. Implementation starts only after the owner approves the plan.
 
 ## Last updated
-2026-10-21
+2026-10-23
