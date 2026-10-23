@@ -27,35 +27,47 @@ const configFile = join(dataDir, "homeserver.yaml");
 const image = "ghcr.io/element-hq/synapse:latest";
 const reset = process.argv.includes("--reset");
 
+
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, {
     stdio: "inherit",
-    shell: process.platform === "win32",
+    shell: false,
     ...opts,
   });
+
+  if (r.error) {
+    console.error(`Failed to execute ${cmd}:`, r.error.message);
+    process.exit(1);
+  }
+
   if (r.status !== 0) {
-    console.error(`${cmd} ${args.join(" ")} failed (exit ${r.status ?? "signal"})`);
+    console.error(
+      `${cmd} ${args.join(" ")} failed (exit ${r.status ?? "signal"})`
+    );
     process.exit(r.status ?? 1);
   }
 }
 
-const docker = spawnSync("docker", ["version", "--format", "{{.Server.Version}}"], {
-  encoding: "utf8",
-  shell: process.platform === "win32",
-});
-if (docker.status !== 0) {
+
+
+const docker = spawnSync(
+  "docker",
+  ["version", "--format", "{{.Server.Version}}"],
+  {
+    encoding: "utf8",
+    shell: false,
+  }
+);
+
+if (docker.error || docker.status !== 0) {
   console.error(
-    "Docker is not available. Install Docker Desktop (WSL2 backend on Windows) and make sure `docker version` works.",
+    "Docker is not available. Start Docker Desktop and make sure `docker version` works."
   );
   process.exit(1);
 }
+
 console.log(`docker server ${docker.stdout.trim()}`);
 
-if (reset) {
-  console.log("reset: stopping services and removing Synapse data and the MongoDB volume");
-  run("docker", ["compose", "-f", composeFile, "down", "--volumes"]);
-  rmSync(dataDir, { recursive: true, force: true });
-}
 
 mkdirSync(dataDir, { recursive: true });
 
