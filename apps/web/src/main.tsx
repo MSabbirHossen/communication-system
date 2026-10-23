@@ -5,8 +5,15 @@ import "./styles/global.css";
 import { loadWebEnv } from "./config/env";
 import { setLocale } from "./i18n";
 import { makeLogger } from "./lib/logger";
-import { login, logoutRemote, register } from "./matrix/auth";
-import { createMatrixClient, startSync, stopAndClearClient } from "./matrix/client";
+import { login, logoutRemote, refreshSession, register } from "./matrix/auth";
+import {
+  applyAccessToken,
+  createMatrixClient,
+  onSessionLoggedOut,
+  restartSync,
+  startSync,
+  stopAndClearClient,
+} from "./matrix/client";
 import { ensureCryptoReady, getCryptoReadiness } from "./matrix/cryptoSetup";
 import { SecretStorageKeyHolder } from "./matrix/recoveryKey";
 import { clearSession, loadSession, saveSession } from "./matrix/sessionStore";
@@ -35,7 +42,11 @@ try {
     clearSession: () => clearSession(),
     login,
     register,
+    refreshSession,
     logoutRemote,
+    restartSync,
+    applyAccessToken,
+    onSessionLoggedOut,
     createMatrixClient: (o) =>
       createMatrixClient({
         ...o,

@@ -118,3 +118,34 @@ export async function stopAndClearClient(client: sdk.MatrixClient): Promise<void
   client.stopClient();
   await client.clearStores();
 }
+
+/** Replace the access token the client sends (after a native /refresh). */
+export function applyAccessToken(client: sdk.MatrixClient, accessToken: string): void {
+  client.setAccessToken(accessToken);
+}
+
+/**
+ * Subscribe to the SDK's "session logged out" signal (sync or a request got
+ * M_UNKNOWN_TOKEN). `softLogout` is true when the server says the device still exists and
+ * only the token is gone (expired). Returns an unsubscribe function.
+ */
+export function onSessionLoggedOut(
+  client: sdk.MatrixClient,
+  cb: (info: { softLogout: boolean }) => void,
+): () => void {
+  const handler = (err: sdk.MatrixError) => {
+    const data = err.data as { soft_logout?: unknown } | undefined;
+    cb({ softLogout: data?.soft_logout === true });
+  };
+  client.on(sdk.HttpApiEvent.SessionLoggedOut, handler);
+  return () => client.removeListener(sdk.HttpApiEvent.SessionLoggedOut, handler);
+}
+
+/** Stop and start syncing again (after replacing an expired token). */
+export async function restartSync(
+  client: sdk.MatrixClient,
+  o: StartSyncOptions = {},
+): Promise<void> {
+  client.stopClient();
+  await startSync(client, o);
+}

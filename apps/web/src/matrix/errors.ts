@@ -19,9 +19,9 @@ export type AuthErrorCode =
 export interface AuthError {
   code: AuthErrorCode;
   /** Present for rate limits, from the server's retry_after_ms. */
-  retryAfterMs?: number;
+  retryAfterMs?: number | undefined;
   /** Machine-readable detail safe to log (errcode / status), never user input. */
-  detail?: string;
+  detail?: string | undefined;
 }
 
 export class AuthFailure extends Error {

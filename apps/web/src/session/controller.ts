@@ -1,5 +1,10 @@
 // Session state machine for the web client (APP_FLOW 5.1/5.2). Framework-free so it can
 // be unit-tested with faked dependencies; SessionProvider adapts it to React.
+//
+// Token lifecycle: matrix-js-sdk 44 refreshes tokens itself only for OAuth2 sessions, so
+// native Matrix refresh tokens (MSC2918, what Synapse issues for password logins) are
+// driven here: proactively shortly before the access token expires, and reactively when
+// the SDK reports a soft logout. See ADR-0003.
 import type { Credentials } from "../matrix/auth";
 import type { CryptoCallbacks, MatrixClient, TokenUpdate } from "../matrix/client";
 import type { CryptoReadiness, SetupOutcome, SetupPrompts, SetupStep } from "../matrix/cryptoSetup";
@@ -48,6 +53,7 @@ export interface SessionDeps {
   clearSession(): Promise<void>;
   login(homeserverUrl: string, creds: Credentials): Promise<StoredSession>;
   register(homeserverUrl: string, creds: Credentials): Promise<StoredSession>;
+  refreshSession(session: StoredSession): Promise<StoredSession>;
   logoutRemote(client: MatrixClient): Promise<void>;
   createMatrixClient(opts: {
     session: StoredSession;
@@ -55,6 +61,9 @@ export interface SessionDeps {
     cryptoCallbacks: CryptoCallbacks;
   }): Promise<MatrixClient>;
   startSync(client: MatrixClient): Promise<void>;
+  restartSync(client: MatrixClient): Promise<void>;
+  applyAccessToken(client: MatrixClient, accessToken: string): void;
+  onSessionLoggedOut(client: MatrixClient, cb: (info: { softLogout: boolean }) => void): () => void;
   stopAndClearClient(client: MatrixClient): Promise<void>;
   getCryptoReadiness(client: MatrixClient): Promise<CryptoReadiness>;
   ensureCryptoReady(
@@ -62,9 +71,16 @@ export interface SessionDeps {
     holder: SecretStorageKeyHolder,
     prompts: SetupPrompts,
   ): Promise<SetupOutcome>;
+  /** Injectable clock for tests. */
+  now?: () => number;
 }
 
 type Listener = () => void;
+
+/** Refresh this long before the access token expires. */
+const REFRESH_MARGIN_MS = 60_000;
+/** Retry a failed (network) refresh after this long. */
+const REFRESH_RETRY_MS = 30_000;
 
 export class SessionController {
   private state: SessionState = {
@@ -80,6 +96,9 @@ export class SessionController {
   private passwordPrompt: Deferred<string> | null = null;
   private recoveryKeyPrompt: Deferred<string | null> | null = null;
   private recoveryKeyAck: Deferred<void> | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private refreshing: Promise<boolean> | null = null;
+  private unsubscribeLoggedOut: (() => void) | null = null;
 
   constructor(private readonly deps: SessionDeps) {}
 
@@ -95,6 +114,10 @@ export class SessionController {
     for (const l of this.listeners) l();
   }
 
+  private now(): number {
+    return this.deps.now ? this.deps.now() : Date.now();
+  }
+
   // --- lifecycle ---------------------------------------------------------------
   /** Restore a persisted session if there is one. Idempotent (StrictMode mounts effects twice). */
   async boot(): Promise<void> {
@@ -108,11 +131,7 @@ export class SessionController {
       }
       await this.start(stored);
     } catch (err) {
-      this.deps.logger.error("session boot failed", {
-        code: toAuthError(err).code,
-        message: err instanceof Error ? err.message : String(err),
-      });
-      this.set({ status: "error", error: toAuthError(err) });
+      await this.failStart(err, "session boot failed");
     }
   }
 
@@ -137,17 +156,8 @@ export class SessionController {
           code: toAuthError(err).code,
         });
       }
-      await this.deps.stopAndClearClient(client);
     }
-    await this.deps.clearSession();
-    this.deps.keyHolder.clear();
-    this.set({
-      status: "signed_out",
-      session: null,
-      client: null,
-      error: null,
-      setup: { phase: "idle" },
-    });
+    await this.dropSession(null);
   }
 
   /** Clear a transient error so forms can retry. */
@@ -242,6 +252,74 @@ export class SessionController {
     this.recoveryKeyAck?.resolve();
   }
 
+  // --- token refresh -------------------------------------------------------------
+  /** Refresh now (deduplicated). Resolves true when the session has a fresh token. */
+  refreshNow(): Promise<boolean> {
+    if (this.refreshing) return this.refreshing;
+    this.refreshing = this.doRefresh().finally(() => {
+      this.refreshing = null;
+    });
+    return this.refreshing;
+  }
+
+  private async doRefresh(): Promise<boolean> {
+    const current = this.state.session;
+    if (!current?.refreshToken) return false;
+    try {
+      const next = await this.deps.refreshSession(current);
+      await this.deps.saveSession(next);
+      if (this.state.client) this.deps.applyAccessToken(this.state.client, next.accessToken);
+      this.set({ session: next });
+      this.deps.logger.debug("access token refreshed", { expiresAt: next.accessTokenExpiresAt });
+      this.scheduleRefresh();
+      return true;
+    } catch (err) {
+      const error = err instanceof AuthFailure ? err.error : toAuthError(err);
+      if (error.code === "session_expired" || error.code === "invalid_credentials") {
+        this.deps.logger.warn("refresh token rejected; signing out", { code: error.code });
+        await this.dropSession({ code: "session_expired", detail: error.detail });
+        return false;
+      }
+      this.deps.logger.warn("token refresh failed; will retry", { code: error.code });
+      this.clearRefreshTimer();
+      this.refreshTimer = setTimeout(() => void this.refreshNow(), REFRESH_RETRY_MS);
+      return false;
+    }
+  }
+
+  private scheduleRefresh(): void {
+    this.clearRefreshTimer();
+    const s = this.state.session;
+    if (!s?.refreshToken || !s.accessTokenExpiresAt) return;
+    const delay = Math.max(5_000, s.accessTokenExpiresAt - this.now() - REFRESH_MARGIN_MS);
+    this.refreshTimer = setTimeout(() => void this.refreshNow(), delay);
+  }
+
+  private clearRefreshTimer(): void {
+    if (this.refreshTimer) clearTimeout(this.refreshTimer);
+    this.refreshTimer = null;
+  }
+
+  private isExpiringSoon(s: StoredSession): boolean {
+    return (
+      s.accessTokenExpiresAt !== undefined &&
+      s.accessTokenExpiresAt - this.now() < REFRESH_MARGIN_MS
+    );
+  }
+
+  /** The SDK reports the token is no longer accepted. */
+  private async handleLoggedOut(info: { softLogout: boolean }): Promise<void> {
+    const { client, session } = this.state;
+    if (!client || !session) return;
+    if (info.softLogout && session.refreshToken) {
+      this.deps.logger.info("session soft-logged out; refreshing token");
+      if (await this.refreshNow()) await this.deps.restartSync(client);
+      return; // otherwise doRefresh already dropped the session or scheduled a retry
+    }
+    this.deps.logger.warn("session logged out by the server", { soft: info.softLogout });
+    await this.dropSession({ code: "session_expired" });
+  }
+
   // --- internals -----------------------------------------------------------------
   private async authenticate(run: () => Promise<StoredSession>): Promise<void> {
     this.set({ status: "authenticating", error: null });
@@ -258,36 +336,95 @@ export class SessionController {
     try {
       await this.start(session);
     } catch (err) {
-      // The account exists and the session is stored; starting the client failed (e.g. the
-      // crypto module could not load). Surface it instead of hanging in "starting".
-      const error = toAuthError(err);
-      this.deps.logger.error("session start failed after authentication", {
-        code: error.code,
-        message: err instanceof Error ? err.message : String(err),
-      });
-      this.set({ status: "error", error });
+      await this.failStart(err, "session start failed after authentication");
     }
   }
 
-  private async start(session: StoredSession): Promise<void> {
+  private async start(stored: StoredSession): Promise<void> {
+    let session = stored;
     this.set({ status: "starting", session, error: null, setup: { phase: "idle" } });
+
+    // An access token about to expire (or already expired) is refreshed before use.
+    if (session.refreshToken && this.isExpiringSoon(session)) {
+      try {
+        session = await this.deps.refreshSession(session);
+        await this.deps.saveSession(session);
+        this.set({ session });
+      } catch (err) {
+        const error = err instanceof AuthFailure ? err.error : toAuthError(err);
+        if (error.code === "session_expired" || error.code === "invalid_credentials") {
+          await this.dropSession({ code: "session_expired", detail: error.detail });
+          return;
+        }
+        throw err; // network: surface as a start error; the stored session stays
+      }
+    }
+
     const client = await this.deps.createMatrixClient({
       session,
       onTokenRefresh: (t) => void this.persistTokens(t),
       cryptoCallbacks: this.deps.keyHolder.callbacks(),
     });
-    await this.deps.startSync(client);
+    this.unsubscribeLoggedOut?.();
+    this.unsubscribeLoggedOut = this.deps.onSessionLoggedOut(client, (info) => {
+      void this.handleLoggedOut(info);
+    });
+    this.set({ client });
+    this.scheduleRefresh();
+
+    try {
+      await this.deps.startSync(client);
+    } catch (err) {
+      if (toAuthError(err).code === "session_expired" && session.refreshToken) {
+        if (await this.refreshNow()) await this.deps.restartSync(client);
+        if (this.state.status !== "starting") return; // dropped during refresh
+      } else {
+        throw err;
+      }
+    }
+
     const readiness = await this.deps.getCryptoReadiness(client);
     if (readiness.crossSigningReady && readiness.secretStorageReady) {
-      this.set({ status: "ready", client });
+      this.set({ status: "ready" });
       this.deps.logger.info("session ready", { deviceId: session.deviceId });
     } else {
-      this.set({ status: "crypto_setup", client });
+      this.set({ status: "crypto_setup" });
       this.deps.logger.info("secure device setup required", {
         deviceId: session.deviceId,
         accountHasCrossSigning: readiness.accountHasCrossSigning,
       });
     }
+  }
+
+  private async failStart(err: unknown, message: string): Promise<void> {
+    const error = toAuthError(err);
+    this.deps.logger.error(message, {
+      code: error.code,
+      message: err instanceof Error ? err.message : String(err),
+    });
+    if (error.code === "session_expired") {
+      await this.dropSession(error);
+      return;
+    }
+    this.set({ status: "error", error });
+  }
+
+  /** Forget this device's session: stop the client, wipe SDK stores, clear the record. */
+  private async dropSession(error: AuthError | null): Promise<void> {
+    this.clearRefreshTimer();
+    this.unsubscribeLoggedOut?.();
+    this.unsubscribeLoggedOut = null;
+    const { client } = this.state;
+    if (client) await this.deps.stopAndClearClient(client);
+    await this.deps.clearSession();
+    this.deps.keyHolder.clear();
+    this.set({
+      status: "signed_out",
+      session: null,
+      client: null,
+      error,
+      setup: { phase: "idle" },
+    });
   }
 
   private async persistTokens(t: TokenUpdate): Promise<void> {
@@ -298,5 +435,6 @@ export class SessionController {
     if (t.accessTokenExpiresAt) next.accessTokenExpiresAt = t.accessTokenExpiresAt;
     await this.deps.saveSession(next);
     this.set({ session: next });
+    this.scheduleRefresh();
   }
 }

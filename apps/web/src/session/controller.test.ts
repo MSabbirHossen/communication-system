@@ -35,7 +35,10 @@ describe("SessionController", () => {
     const c = new SessionController(deps);
     await c.boot();
     const seen: string[] = [];
-    c.subscribe(() => seen.push(c.getSnapshot().status));
+    c.subscribe(() => {
+      const s = c.getSnapshot().status;
+      if (seen[seen.length - 1] !== s) seen.push(s);
+    });
     await c.signIn({ username: "alice", password: "correct horse" });
     expect(deps.login).toHaveBeenCalledWith("http://localhost:8008", {
       username: "alice",
