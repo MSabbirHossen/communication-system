@@ -1,6 +1,6 @@
 # ADR-0003 — Identity, sessions, device security and recovery (web client)
 
-**Status:** Proposed — for the project owner's approval at the Phase 2 exit gate  
+**Status:** **Accepted** — approved by the project owner on 2026-10-23 at the Phase 2 exit gate  
 **Date:** 2026-10-23  
 **Deciders:** Project owner (recovery model and multi-device decided 2026-10-23); implementation by the AI contributor  
 **Inputs:** `docs/PRD.md` §10.4; `docs/TRD.md` §4.1, §5.3; `docs/APP_FLOW.md` 5.1, 5.2, 5.4; `docs/UI_UX_BRIEF.md` §6.2, §6.3, §6.8; `docs/IMPLEMENTATION_PLAN.md` Phase 2; ADR-0001 (Matrix, matrix-js-sdk 44 with the Rust crypto backend); `docs/security/THREAT_MODEL.md`.

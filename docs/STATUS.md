@@ -1,15 +1,15 @@
 # Project Status
 
 ## Active phase
-Phase 2 — Identity, authentication and device security (**implemented, verified locally and in CI; exit gate awaiting the owner's acceptance**)
+Phase 3 — One-to-one encrypted messaging (**planning only; no implementation until the owner approves the plan**)
 
 ## Last completed milestone
-**Phase 2 implemented, tested and verified locally (2026-10-23).** Eight planned commits plus one fix on local `main` on top of `89d9d3d` (the Phase 1 tip): session store and client factory `1ad0395`, registration and login `160cd97`, secure device setup with recovery key and key backup `585869e`, session lifecycle with app-driven token refresh `83c1a54`, device list and revocation `31175f5`, own-device SAS verification and security notices `a5e4908`, refresh-token config and integration tests in CI `cd7a2e7`, crypto-store wipe fix `33de740`, documentation `db2174a`, and two CI follow-ups: build-order fix `18f7a40` and integration-test annotations. **Pushed 2026-10-23.** First CI run 39929104030 failed in `pnpm build`: the mobile package rebuilt the web app concurrently with the workspace build and before the shared packages existed (reproduced in a Linux container; two concurrent bundles of matrix-js-sdk were killed). Fixed in `18f7a40`; run 39932188651 on that commit is green on all four jobs (checks, secrets-scan, dev-env with the Phase 2 integration tests, poc-e2ee).
+**Phase 2 complete — exit gate accepted by the owner on 2026-10-23; ADR-0003 Accepted.** Eight planned commits plus one fix on local `main` on top of `89d9d3d` (the Phase 1 tip): session store and client factory `1ad0395`, registration and login `160cd97`, secure device setup with recovery key and key backup `585869e`, session lifecycle with app-driven token refresh `83c1a54`, device list and revocation `31175f5`, own-device SAS verification and security notices `a5e4908`, refresh-token config and integration tests in CI `cd7a2e7`, crypto-store wipe fix `33de740`, documentation `db2174a`, and two CI follow-ups: build-order fix `18f7a40` and integration-test annotations. **Pushed 2026-10-23.** First CI run 39929104030 failed in `pnpm build`: the mobile package rebuilt the web app concurrently with the workspace build and before the shared packages existed (reproduced in a Linux container; two concurrent bundles of matrix-js-sdk were killed). Fixed in `18f7a40`; run 39932188651 on that commit is green on all four jobs (checks, secrets-scan, dev-env with the Phase 2 integration tests, poc-e2ee).
 
 Phase 1 closed 2026-10-23 (CI run 39899908581 green on `9972177`; owner's runbook walkthrough passed). Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
 
 ## Current task
-Owner acceptance of the Phase 2 exit gate (evidence below) and ADR-0003. No Phase 3 work has started.
+Phase 3 plan for owner approval (AGENTS.md step 2), checked against the Phase 3 exit gate in IMPLEMENTATION_PLAN.md. No Phase 3 code until approved.
 
 ## Completed (Phase 2)
 Labels follow AGENTS.md §12. Unit = jsdom/Node tests without a network; integration = Node against the compose Synapse 1.163.1 (`pnpm test:integration`); manual = built-in browser against the local dev server, two origins (`localhost`, `second.localhost`) as two devices.
@@ -48,7 +48,7 @@ Executed 2026-10-23 on Windows 11, Node 22, pnpm 12, TypeScript 6.0.3, Docker De
 | No credentials or private keys appear in logs or ordinary database records | logger scrubber tests (Phase 1); the web client never writes to MongoDB; recovery key never persisted (unit asserts the holder is cleared; integration asserts `holder.has() === false` after setup); passwords live only in component state and UIA requests |
 | Authentication, authorization and session lifecycle tests pass | 174 unit + 9 integration locally; CI runs 39932188651 and 39932845775 green |
 
-The gate is **satisfied locally and in CI**; it closes when the owner accepts the evidence and ADR-0003 (status Proposed).
+Gate **closed 2026-10-23**: evidence accepted by the owner; ADR-0003 Accepted.
 
 ## Blockers and risks
 - **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5); the WebView key-storage question (TM-23) is untouched by Phase 2.
@@ -77,7 +77,7 @@ The gate is **satisfied locally and in CI**; it closes when the owner accepts th
 - Repository stays public (final, 2026-10-23); Capacitor for mobile remains provisional (ADR-0001 C2).
 
 ## Next approved action
-Owner reviews the Phase 2 evidence and ADR-0003 and accepts or reopens the gate. Phase 3 (encrypted one-to-one messaging) starts only in plan mode after acceptance.
+Produce the Phase 3 plan (plan mode, no code) and present it for approval. Implementation starts only after the owner approves the plan.
 
 ## Last updated
 2026-10-23
