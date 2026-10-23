@@ -15,7 +15,9 @@ function peopleClient(opts: { rooms?: Room[]; direct?: Record<string, string[]> 
     if (userId === "@flaky:localhost") throw new MatrixError({ errcode: "M_LIMIT_EXCEEDED" }, 429);
     throw new MatrixError({ errcode: "M_NOT_FOUND", error: "Profile not found" }, 404);
   });
-  const createRoom = vi.fn(async () => ({ room_id: "!new:localhost" }));
+  const createRoom = vi.fn(async (_opts: Record<string, unknown>) => ({
+    room_id: "!new:localhost",
+  }));
   const setAccountData = vi.fn(async (_t: string, c: Record<string, string[]>) => {
     state.direct = c;
     return {};
