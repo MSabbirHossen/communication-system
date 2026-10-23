@@ -6,7 +6,7 @@ import type { MatrixClient } from "matrix-js-sdk";
 import { fakeRecipientCrypto } from "../matrix/recipientSecurity.test";
 import { BOB, ME, fakeRoom } from "../matrix/rooms.test";
 import { mockViewport } from "../test/setup";
-import { controllerIn, renderApp } from "../test/session";
+import { controllerIn, fakeSecurityDeps, renderApp } from "../test/session";
 
 function detailsClient(crypto: ReturnType<typeof fakeRecipientCrypto>) {
   const em = new EventEmitter();
@@ -79,5 +79,27 @@ describe("conversation details", () => {
     await user.click(within(dialog).getByRole("button", { name: "Leave conversation" }));
     await waitFor(() => expect(leave).toHaveBeenCalledWith("!r:localhost"));
     expect(await screen.findByRole("region", { name: "Chats" })).toBeInTheDocument();
+  });
+});
+
+describe("verifying the other person", () => {
+  it("links to the in-room verification flow and starts a request for that room", async () => {
+    mockViewport(true);
+    const fake = detailsClient(
+      fakeRecipientCrypto({ devices: [{ id: "PHONE", verified: false }] }),
+    );
+    const c = await controllerIn("ready", { createMatrixClient: vi.fn(async () => fake.client) });
+    const requestUserVerification = vi.fn(async () => {
+      throw new Error("not started in this test");
+    });
+    renderApp("/chats/!r:localhost/details", c, fakeSecurityDeps({ requestUserVerification }));
+    const link = await screen.findByRole("link", { name: "Verify this person" });
+    expect(link).toHaveAttribute("href", "/chats/!r%3Alocalhost/verify");
+    await userEvent.setup().click(link);
+    expect(await screen.findByRole("heading", { name: "Verify Bob" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(requestUserVerification).toHaveBeenCalledWith(fake.client, BOB, "!r:localhost"),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(/something went wrong/i);
   });
 });

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SecurityNotice } from "../matrix/sessionEvents";
+import type { FlowState, VerificationFlow } from "../matrix/verification";
 import { controllerIn, fakeSecurityDeps, renderApp } from "../test/session";
 import { SecurityStore } from "./security";
 
@@ -85,3 +86,79 @@ describe("security banners", () => {
     expect(screen.queryByText(/verified/i)).toBeNull();
   });
 });
+
+describe("verification requests from other users", () => {
+  it("tracks the incoming flow per user and announces it with a link into the conversation", async () => {
+    let incoming: ((f: VerificationFlow) => void) | undefined;
+    const deps = fakeSecurityDeps({
+      watchIncomingUserVerification: vi.fn((_c, cb) => {
+        incoming = cb;
+        return () => {};
+      }),
+    });
+    renderApp("/chats", await controllerIn("ready"), deps);
+    await screen.findByRole("heading", { name: "Chats" });
+    const flow = userFlow("@bob:localhost", "!dm:localhost");
+    act(() => incoming!(flow.flow));
+    const list = screen.getByRole("list", { name: "Security notices" });
+    expect(list).toHaveTextContent(/wants to verify their identity/i);
+    expect(list).toHaveTextContent("@bob:localhost");
+    expect(within(list).getByRole("link", { name: "Review" })).toHaveAttribute(
+      "href",
+      "/chats/!dm%3Alocalhost/verify",
+    );
+    flow.set({ phase: "done" });
+    await waitFor(() =>
+      expect(screen.queryByRole("list", { name: "Security notices" })).toBeNull(),
+    );
+  });
+
+  it("the store hands the pending user flow to the verify screen and forgets it when finished", () => {
+    const store = new SecurityStore(fakeSecurityDeps());
+    const flow = userFlow("@bob:localhost", "!dm:localhost");
+    (store as unknown as { onIncomingUser(f: VerificationFlow): void }).onIncomingUser(flow.flow);
+    expect(store.incomingUserFor("@bob:localhost")).toBe(flow.flow);
+    expect(store.getSnapshot()[0]).toMatchObject({
+      kind: "user_verification_request",
+      userId: "@bob:localhost",
+      roomId: "!dm:localhost",
+    });
+    flow.set({ phase: "cancelled" });
+    expect(store.incomingUserFor("@bob:localhost")).toBeUndefined();
+    expect(store.getSnapshot()).toEqual([]);
+  });
+});
+
+function userFlow(userId: string, roomId: string) {
+  let state: FlowState = {
+    phase: "requested",
+    initiatedByMe: false,
+    otherDeviceId: undefined,
+    otherUserId: userId,
+    roomId,
+    emoji: null,
+    decimal: null,
+    cancelCode: null,
+    cancelledByMe: false,
+  };
+  const listeners = new Set<() => void>();
+  const set = (patch: Partial<FlowState>) =>
+    act(() => {
+      state = { ...state, ...patch };
+      listeners.forEach((l) => l());
+    });
+  const flow: VerificationFlow = {
+    getState: () => state,
+    subscribe: (cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    accept: async () => {},
+    startSas: async () => {},
+    confirmMatch: async () => {},
+    reportMismatch: () => {},
+    cancel: async () => {},
+    dispose: () => {},
+  };
+  return { flow, set };
+}

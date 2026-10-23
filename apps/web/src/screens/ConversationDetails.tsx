@@ -97,6 +97,16 @@ export function ConversationDetailsScreen() {
         <p className="type-meta text-muted">
           {t(`security.identity.${security?.identity ?? "unknown"}.help` as MessageKey)}
         </p>
+        {security && security.identity !== "verified" && security.identity !== "unknown" && (
+          <div className="actions actions--start">
+            <Link
+              to={`/chats/${encodeURIComponent(roomId)}/verify`}
+              className="button button--primary"
+            >
+              {t("details.verify")}
+            </Link>
+          </div>
+        )}
       </section>
 
       <section className="card" aria-labelledby="details-encryption">

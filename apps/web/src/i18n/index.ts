@@ -76,6 +76,7 @@ const en = {
   "details.devices.none": "No encryption keys are published for this person yet.",
   "details.devices.help":
     "Every device of theirs that can read this conversation. Not verified means their identity has not vouched for it; compare fingerprints out of band if in doubt.",
+  "details.verify": "Verify this person",
   "details.leave": "Leave conversation",
   "details.leave.title": "Leave this conversation?",
   "details.leave.body":
@@ -286,6 +287,15 @@ const en = {
   "verify.cancelled.other": "Verification did not complete. The device stays unverified.",
   "verify.cancel": "Cancel",
   "verify.back": "Back to devices",
+  "verify.user.title": "Verify {name}",
+  "verify.userLabel": "Person",
+  "verify.waiting.accept.user":
+    "Waiting for them to accept the request. They will see a notice in this conversation.",
+  "verify.incoming.user.body":
+    "This person asked to verify with you. Continue only if you expect it, then compare the emoji with them over a channel you trust (a call, in person).",
+  "verify.done.user.body":
+    "Identity verified. You confirmed this person holds the keys behind their account; their devices are now shown as verified when their identity vouches for them.",
+  "verify.back.details": "Back to conversation details",
 
   // Security notices (THREAT_MODEL TM-03, TM-08)
   "notice.list": "Security notices",
@@ -295,6 +305,7 @@ const en = {
     "Your account's security identity changed. If you did not set up a new device or reset your keys, review your devices now.",
   "notice.backupDisabled": "Encrypted message backup is turned off for this account.",
   "notice.verificationRequest": "One of your devices wants to verify with this one:",
+  "notice.userVerificationRequest": "Someone wants to verify their identity with you:",
   "notice.verificationRequest.action": "Review",
   "notice.decline": "Decline",
   "notice.dismiss": "Dismiss",

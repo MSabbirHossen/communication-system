@@ -27,11 +27,20 @@ function NoticeRow({ notice, onDismiss }: { notice: Notice; onDismiss: () => voi
         label: t("notice.verificationRequest.action"),
       };
       break;
+    case "user_verification_request":
+      text = t("notice.userVerificationRequest");
+      detail = notice.userId;
+      link = {
+        to: `/chats/${encodeURIComponent(notice.roomId)}/verify`,
+        label: t("notice.verificationRequest.action"),
+      };
+      break;
   }
-  const dismissLabel =
-    notice.kind === "verification_request" ? t("notice.decline") : t("notice.dismiss");
+  const isRequest =
+    notice.kind === "verification_request" || notice.kind === "user_verification_request";
+  const dismissLabel = isRequest ? t("notice.decline") : t("notice.dismiss");
   const dismiss = () => {
-    if (notice.kind === "verification_request") void notice.flow.cancel().catch(() => undefined);
+    if (isRequest) void notice.flow.cancel().catch(() => undefined);
     onDismiss();
   };
   return (
@@ -51,7 +60,7 @@ function NoticeRow({ notice, onDismiss }: { notice: Notice; onDismiss: () => voi
   );
 }
 
-/** Security notices for the signed-in account (new device, identity change, verification request). */
+/** Security notices for the signed-in account (new device, identity change, verification requests). */
 export function SecurityBanners() {
   const store = useSecurity();
   const notices = useSecurityNotices();

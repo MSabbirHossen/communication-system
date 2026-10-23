@@ -27,6 +27,9 @@ export interface FlowState {
   phase: FlowPhase;
   initiatedByMe: boolean;
   otherDeviceId: string | undefined;
+  otherUserId: string;
+  /** Room the request travels in (in-room verification with another user). */
+  roomId: string | undefined;
   /** [emoji, name] pairs, when phase is show_sas/confirming. */
   emoji: Array<[string, string]> | null;
   decimal: [number, number, number] | null;
@@ -81,6 +84,8 @@ export function flowFromRequest(request: VerificationRequest): VerificationFlow 
     phase: phaseOf(request, sas, confirming),
     initiatedByMe: request.initiatedByMe,
     otherDeviceId: request.otherDeviceId,
+    otherUserId: request.otherUserId,
+    roomId: request.roomId,
     emoji: sas?.sas.emoji ? sas.sas.emoji.map(([e, n]) => [e, n] as [string, string]) : null,
     decimal: sas?.sas.decimal ?? null,
     cancelCode: request.cancellationCode,
@@ -171,6 +176,19 @@ export function watchIncomingOwnDeviceRequests(
 ): () => void {
   const handler = (request: VerificationRequest) => {
     if (!request.isSelfVerification) return;
+    cb(flowFromRequest(request));
+  };
+  client.on(CryptoEvent.VerificationRequestReceived, handler);
+  return () => client.removeListener(CryptoEvent.VerificationRequestReceived, handler);
+}
+
+/** Incoming verification requests from other users (in-room, Phase 3). */
+export function watchIncomingUserRequests(
+  client: MatrixClient,
+  cb: (flow: VerificationFlow) => void,
+): () => void {
+  const handler = (request: VerificationRequest) => {
+    if (request.isSelfVerification) return;
     cb(flowFromRequest(request));
   };
   client.on(CryptoEvent.VerificationRequestReceived, handler);

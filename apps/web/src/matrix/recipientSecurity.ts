@@ -5,6 +5,7 @@
 import type { MatrixClient } from "matrix-js-sdk";
 import { CryptoEvent } from "matrix-js-sdk/lib/crypto-api/index.js";
 import { formatFingerprint } from "./devices";
+import { flowFromRequest, type VerificationFlow } from "./verification";
 
 export type RecipientIdentity =
   | "verified" // we verified this person's cross-signing identity and it is unchanged
@@ -78,4 +79,16 @@ export function watchRecipientSecurity(
     client.removeListener(CryptoEvent.UserTrustStatusChanged, onTrust);
     client.removeListener(CryptoEvent.DevicesUpdated, onDevices);
   };
+}
+
+/** Ask the other participant to verify with me through the conversation's room (SAS). */
+export async function requestUserVerification(
+  client: MatrixClient,
+  userId: string,
+  roomId: string,
+): Promise<VerificationFlow> {
+  const crypto = client.getCrypto();
+  if (!crypto) throw new Error("crypto backend not initialised");
+  const request = await crypto.requestVerificationDM(userId, roomId);
+  return flowFromRequest(request);
 }

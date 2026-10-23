@@ -3,14 +3,16 @@ import { Link, useParams } from "react-router";
 import { t } from "../i18n";
 import { toAuthError, type AuthError } from "../matrix/errors";
 import type { VerificationFlow } from "../matrix/verification";
+import type { MatrixClient } from "../matrix/client";
 import { useSession } from "../session/SessionProvider";
-import { useSecurity } from "../session/security";
+import { useSecurity, type SecurityStore } from "../session/security";
+import { useConversations } from "../session/useRooms";
 import { authErrorMessage } from "./auth";
 
-function BackLink() {
+function BackLink({ to, label }: { to: string; label: string }) {
   return (
-    <Link to="/settings/devices" className="button">
-      {t("verify.back")}
+    <Link to={to} className="button">
+      {label}
     </Link>
   );
 }
@@ -18,9 +20,22 @@ function BackLink() {
 /**
  * Renders one verification flow (APP_FLOW 5.4). The initiator starts the emoji
  * comparison once both sides are ready; the accepting side waits for it. Every outcome
- * other than the SDK's "done" keeps the device unverified and says so.
+ * other than the SDK's "done" keeps the subject unverified and says so.
  */
-function FlowView({ flow, deviceId }: { flow: VerificationFlow; deviceId: string }) {
+function FlowView({
+  flow,
+  subject,
+  backTo,
+  backLabel,
+  self,
+}: {
+  flow: VerificationFlow;
+  subject: string;
+  backTo: string;
+  backLabel: string;
+  /** Verifying one of my own devices (true) or another person (false). */
+  self: boolean;
+}) {
   const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
   const [actionError, setActionError] = useState<AuthError | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -31,7 +46,7 @@ function FlowView({ flow, deviceId }: { flow: VerificationFlow; deviceId: string
     }
   }, [flow, state.phase, state.initiatedByMe]);
 
-  // Leaving the screen mid-flow cancels it (the device stays unverified). The cancel is
+  // Leaving the screen mid-flow cancels it (the subject stays unverified). The cancel is
   // deferred a tick so a remount of the same flow does not cancel it.
   useEffect(() => {
     clearTimeout(leaveTimer.current);
@@ -45,6 +60,8 @@ function FlowView({ flow, deviceId }: { flow: VerificationFlow; deviceId: string
   }, [flow]);
 
   const run = (p: Promise<void>) => p.catch((e: unknown) => setActionError(toAuthError(e)));
+  const incomingBody = self ? t("verify.incoming.body") : t("verify.incoming.user.body");
+  const doneBody = self ? t("verify.done.body") : t("verify.done.user.body");
 
   let body: React.ReactNode;
   switch (state.phase) {
@@ -52,7 +69,7 @@ function FlowView({ flow, deviceId }: { flow: VerificationFlow; deviceId: string
       body = state.initiatedByMe ? (
         <>
           <p className="type-body" role="status">
-            {t("verify.waiting.accept")}
+            {self ? t("verify.waiting.accept") : t("verify.waiting.accept.user")}
           </p>
           <div className="actions">
             <button type="button" className="button" onClick={() => void run(flow.cancel())}>
@@ -62,7 +79,7 @@ function FlowView({ flow, deviceId }: { flow: VerificationFlow; deviceId: string
         </>
       ) : (
         <>
-          <p className="type-body">{t("verify.incoming.body")}</p>
+          <p className="type-body">{incomingBody}</p>
           <div className="actions">
             <button
               type="button"
@@ -140,10 +157,10 @@ function FlowView({ flow, deviceId }: { flow: VerificationFlow; deviceId: string
       body = (
         <>
           <p className="banner banner--ok" role="status">
-            {t("verify.done.body")}
+            {doneBody}
           </p>
           <div className="actions">
-            <BackLink />
+            <BackLink to={backTo} label={backLabel} />
           </div>
         </>
       );
@@ -162,11 +179,13 @@ function FlowView({ flow, deviceId }: { flow: VerificationFlow; deviceId: string
             )}
           </p>
           <p className="type-body">
-            <span className="badge badge--warn">{t("devices.badge.unverified")}</span>{" "}
-            <code>{deviceId}</code>
+            <span className="badge badge--warn">
+              {self ? t("devices.badge.unverified") : t("security.identity.unverified")}
+            </span>{" "}
+            <code>{subject}</code>
           </p>
           <div className="actions">
-            <BackLink />
+            <BackLink to={backTo} label={backLabel} />
           </div>
         </>
       );
@@ -185,32 +204,46 @@ function FlowView({ flow, deviceId }: { flow: VerificationFlow; deviceId: string
   );
 }
 
-export function VerifyDeviceScreen() {
-  const { deviceId = "" } = useParams();
+/** Shared screen: resolves a pending incoming flow or starts a new request, then renders it. */
+function VerifyFlowScreen({
+  title,
+  subject,
+  self,
+  backTo,
+  backLabel,
+  pending,
+  request,
+}: {
+  title: string;
+  subject: string;
+  self: boolean;
+  backTo: string;
+  backLabel: string;
+  pending: (store: SecurityStore) => VerificationFlow | undefined;
+  request: (store: SecurityStore, client: MatrixClient) => Promise<VerificationFlow>;
+}) {
   const { client } = useSession();
   const security = useSecurity();
-  const [flow, setFlow] = useState<VerificationFlow | null>(
-    () => security.incomingFor(deviceId) ?? null,
-  );
+  const [flow, setFlow] = useState<VerificationFlow | null>(() => pending(security) ?? null);
   const [error, setError] = useState<AuthError | null>(null);
   const started = useRef(false);
 
   useEffect(() => {
-    if (flow || !client || !deviceId || started.current) return;
+    if (flow || !client || !subject || started.current) return;
     started.current = true;
-    security.requestVerification(client, deviceId).then(
+    request(security, client).then(
       (f) => setFlow(f),
       (e: unknown) => setError(toAuthError(e)),
     );
-  }, [client, deviceId, flow, security]);
+  }, [client, subject, flow, security, request]);
 
   return (
     <section className="pane" aria-labelledby="verify-title">
       <h1 id="verify-title" className="type-heading pane__title">
-        {t("verify.title")}
+        {title}
       </h1>
       <p className="type-meta text-muted">
-        {t("verify.deviceLabel")} <code>{deviceId}</code>
+        {self ? t("verify.deviceLabel") : t("verify.userLabel")} <code>{subject}</code>
       </p>
       {error ? (
         <>
@@ -218,16 +251,61 @@ export function VerifyDeviceScreen() {
             {authErrorMessage(error)}
           </p>
           <div className="actions">
-            <BackLink />
+            <BackLink to={backTo} label={backLabel} />
           </div>
         </>
       ) : flow ? (
-        <FlowView flow={flow} deviceId={deviceId} />
+        <FlowView flow={flow} subject={subject} backTo={backTo} backLabel={backLabel} self={self} />
       ) : (
         <p className="type-body" role="status">
           {t("loading")}
         </p>
       )}
     </section>
+  );
+}
+
+/** /settings/devices/verify/:deviceId — verify one of my own devices. */
+export function VerifyDeviceScreen() {
+  const { deviceId = "" } = useParams();
+  return (
+    <VerifyFlowScreen
+      title={t("verify.title")}
+      subject={deviceId}
+      self
+      backTo="/settings/devices"
+      backLabel={t("verify.back")}
+      pending={(store) => store.incomingFor(deviceId)}
+      request={(store, client) => store.requestVerification(client, deviceId)}
+    />
+  );
+}
+
+/** /chats/:roomId/verify — verify the other participant of a direct conversation. */
+export function VerifyUserScreen() {
+  const { roomId = "" } = useParams();
+  const conversation = useConversations().find((c) => c.roomId === roomId);
+  const userId = conversation?.otherUserId ?? "";
+  const backTo = `/chats/${encodeURIComponent(roomId)}/details`;
+  if (!conversation) {
+    return (
+      <div className="empty" role="alert">
+        <h2 className="type-heading">{t("chat.notFound.title")}</h2>
+        <Link to="/chats" className="link">
+          {t("notFound.back")}
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <VerifyFlowScreen
+      title={t("verify.user.title", { name: conversation.displayName })}
+      subject={userId}
+      self={false}
+      backTo={backTo}
+      backLabel={t("verify.back.details")}
+      pending={(store) => store.incomingUserFor(userId)}
+      request={(store, client) => store.requestUserVerification(client, userId, roomId)}
+    />
   );
 }

@@ -6,10 +6,9 @@ import { ChatsScreen, NoConversationSelected } from "./screens/Chats";
 import { ConversationScreen } from "./screens/Conversation";
 import { ConversationDetailsScreen } from "./screens/ConversationDetails";
 import { NewConversationScreen } from "./screens/NewConversation";
-import { PendingScreen } from "./screens/pending";
 import { DevicesSecurityScreen } from "./screens/DevicesSecurity";
 import { SecureDeviceSetupScreen } from "./screens/SecureDeviceSetup";
-import { VerifyDeviceScreen } from "./screens/VerifyDevice";
+import { VerifyDeviceScreen, VerifyUserScreen } from "./screens/VerifyDevice";
 import { RedirectIfSignedIn, RequireClient, RequireSession } from "./session/SessionProvider";
 
 export const routes: RouteObject[] = [
@@ -61,7 +60,7 @@ export const routes: RouteObject[] = [
               { path: "new", element: <NewConversationScreen /> },
               { path: ":roomId", element: <ConversationScreen /> },
               { path: ":roomId/details", element: <ConversationDetailsScreen /> },
-              { path: ":roomId/verify", element: <PendingScreen /> },
+              { path: ":roomId/verify", element: <VerifyUserScreen /> },
             ],
           },
           { path: "/people", element: <NewConversationScreen /> },

@@ -14,6 +14,7 @@ import {
   flowFromRequest,
   requestOwnDeviceVerification,
   watchIncomingOwnDeviceRequests,
+  watchIncomingUserRequests,
 } from "./verification";
 
 const ME = "@alice:localhost";
@@ -95,6 +96,7 @@ function fakeRequest(opts: { initiatedByMe?: boolean; isSelfVerification?: boole
     isSelfVerification: opts.isSelfVerification ?? true,
     otherUserId: ME,
     otherDeviceId: "PHONE1",
+    roomId: opts.isSelfVerification === false ? "!dm:localhost" : undefined,
     pending: true,
     accept,
     startVerification,
@@ -258,5 +260,30 @@ describe("incoming requests", () => {
     const flow = await requestOwnDeviceVerification(client, "PHONE1");
     expect(crypto.requestDeviceVerification).toHaveBeenCalledWith(ME, "PHONE1");
     expect(flow.getState().phase).toBe("requested");
+  });
+});
+
+describe("incoming requests from other users", () => {
+  it("surfaces only non-self requests with the room they travel in", () => {
+    const em = new EventEmitter();
+    const client = {
+      getUserId: () => ME,
+      on: (e: string, cb: (...a: unknown[]) => void) => em.on(e, cb),
+      removeListener: (e: string, cb: (...a: unknown[]) => void) => em.removeListener(e, cb),
+    } as unknown as MatrixClient;
+    const cb = vi.fn();
+    const stop = watchIncomingUserRequests(client, cb);
+    em.emit(CryptoEvent.VerificationRequestReceived, fakeRequest({ initiatedByMe: false }).request);
+    expect(cb).not.toHaveBeenCalled();
+    const theirs = fakeRequest({ initiatedByMe: false, isSelfVerification: false });
+    em.emit(CryptoEvent.VerificationRequestReceived, theirs.request);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(cb.mock.calls[0]![0].getState()).toMatchObject({
+      initiatedByMe: false,
+      otherUserId: ME,
+      roomId: "!dm:localhost",
+    });
+    stop();
+    expect(em.eventNames()).toEqual([]);
   });
 });

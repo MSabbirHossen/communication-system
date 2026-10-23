@@ -104,6 +104,10 @@ export function fakeSecurityDeps(overrides: Partial<SecurityDeps> = {}): Securit
   return {
     watchSecurityEvents: vi.fn(() => () => {}),
     watchIncomingVerification: vi.fn(() => () => {}),
+    watchIncomingUserVerification: vi.fn(() => () => {}),
+    requestUserVerification: vi.fn(async () => {
+      throw new Error("requestUserVerification not faked");
+    }),
     requestVerification: vi.fn(async () => {
       throw new Error("requestVerification not faked");
     }),

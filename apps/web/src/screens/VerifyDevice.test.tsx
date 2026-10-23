@@ -20,6 +20,8 @@ function fakeFlow(initial: Partial<FlowState> = {}) {
     phase: "requested",
     initiatedByMe: true,
     otherDeviceId: "PHONE1",
+    otherUserId: "@alice:localhost",
+    roomId: undefined,
     emoji: null,
     decimal: null,
     cancelCode: null,

@@ -10,9 +10,11 @@ import {
   type ReactNode,
 } from "react";
 import type { MatrixClient } from "../matrix/client";
+import { requestUserVerification } from "../matrix/recipientSecurity";
 import {
   requestOwnDeviceVerification,
   watchIncomingOwnDeviceRequests,
+  watchIncomingUserRequests,
   type VerificationFlow,
 } from "../matrix/verification";
 import { watchSecurityEvents, type SecurityNotice } from "../matrix/sessionEvents";
@@ -22,21 +24,29 @@ export interface SecurityDeps {
   watchSecurityEvents: typeof watchSecurityEvents;
   watchIncomingVerification: typeof watchIncomingOwnDeviceRequests;
   requestVerification: typeof requestOwnDeviceVerification;
+  /** Requests from other users (in-room verification, Phase 3). */
+  watchIncomingUserVerification: typeof watchIncomingUserRequests;
+  requestUserVerification: typeof requestUserVerification;
 }
 
 export const realSecurityDeps: SecurityDeps = {
   watchSecurityEvents,
   watchIncomingVerification: watchIncomingOwnDeviceRequests,
   requestVerification: requestOwnDeviceVerification,
+  watchIncomingUserVerification: watchIncomingUserRequests,
+  requestUserVerification,
 };
 
 export type Notice = { id: number } & (
-  SecurityNotice | { kind: "verification_request"; deviceId: string; flow: VerificationFlow }
+  | SecurityNotice
+  | { kind: "verification_request"; deviceId: string; flow: VerificationFlow }
+  | { kind: "user_verification_request"; userId: string; roomId: string; flow: VerificationFlow }
 );
 
 export class SecurityStore {
   private notices: Notice[] = [];
   private incoming = new Map<string, VerificationFlow>();
+  private incomingUsers = new Map<string, VerificationFlow>();
   private listeners = new Set<() => void>();
   private stops: Array<() => void> = [];
   private nextId = 1;
@@ -47,6 +57,7 @@ export class SecurityStore {
     this.stop();
     this.stops.push(this.deps.watchSecurityEvents(client, (n) => this.push(n)));
     this.stops.push(this.deps.watchIncomingVerification(client, (f) => this.onIncoming(f)));
+    this.stops.push(this.deps.watchIncomingUserVerification(client, (f) => this.onIncomingUser(f)));
   }
 
   /** Unsubscribe and forget everything (the session ended). */
@@ -54,7 +65,9 @@ export class SecurityStore {
     for (const s of this.stops) s();
     this.stops = [];
     for (const f of this.incoming.values()) f.dispose();
+    for (const f of this.incomingUsers.values()) f.dispose();
     this.incoming.clear();
+    this.incomingUsers.clear();
     this.set([]);
   }
 
@@ -77,8 +90,21 @@ export class SecurityStore {
     return this.incoming.get(deviceId);
   }
 
+  /** An incoming request from another user, if one is pending. */
+  incomingUserFor(userId: string): VerificationFlow | undefined {
+    return this.incomingUsers.get(userId);
+  }
+
   requestVerification(client: MatrixClient, deviceId: string): Promise<VerificationFlow> {
     return this.deps.requestVerification(client, deviceId);
+  }
+
+  requestUserVerification(
+    client: MatrixClient,
+    userId: string,
+    roomId: string,
+  ): Promise<VerificationFlow> {
+    return this.deps.requestUserVerification(client, userId, roomId);
   }
 
   private onIncoming(flow: VerificationFlow): void {
@@ -91,12 +117,33 @@ export class SecurityStore {
       ...this.notices.filter((n) => n.kind !== "verification_request" || n.deviceId !== deviceId),
       { id, kind: "verification_request", deviceId, flow },
     ]);
+    this.untilFinished(flow, id, () => {
+      if (this.incoming.get(deviceId) === flow) this.incoming.delete(deviceId);
+    });
+  }
+
+  private onIncomingUser(flow: VerificationFlow): void {
+    const { otherUserId: userId, roomId } = flow.getState();
+    if (!userId || !roomId) return;
+    this.incomingUsers.get(userId)?.dispose();
+    this.incomingUsers.set(userId, flow);
+    const id = this.nextId++;
+    this.set([
+      ...this.notices.filter((n) => n.kind !== "user_verification_request" || n.userId !== userId),
+      { id, kind: "user_verification_request", userId, roomId, flow },
+    ]);
+    this.untilFinished(flow, id, () => {
+      if (this.incomingUsers.get(userId) === flow) this.incomingUsers.delete(userId);
+    });
+  }
+
+  private untilFinished(flow: VerificationFlow, noticeId: number, cleanup: () => void): void {
     const unsub = flow.subscribe(() => {
       const { phase } = flow.getState();
       if (phase === "done" || phase === "cancelled") {
         unsub();
-        if (this.incoming.get(deviceId) === flow) this.incoming.delete(deviceId);
-        this.dismiss(id);
+        cleanup();
+        this.dismiss(noticeId);
       }
     });
   }
