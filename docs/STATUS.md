@@ -1,15 +1,15 @@
 # Project Status
 
 ## Active phase
-Phase 3 — One-to-one encrypted messaging (**implemented, verified locally and in CI; exit gate awaiting the owner's acceptance**)
+Phase 4 — Complete the web experience (**planning only; no implementation until the owner approves the plan**)
 
 ## Last completed milestone
 **Phase 2 complete — exit gate accepted by the owner on 2026-10-23; ADR-0003 Accepted.** CI green on `41491d4`. Phase 1 closed 2026-10-23; Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
 
-**Phase 3 implemented (2026-10-23)** as the seven planned commits plus fixes on local `main` on top of `41491d4`: conversation list and invitations `1648408`, start by identifier `5ae72d5` (+ `36d6ac2` test typing), conversation view with honest states `1dc666d`, pagination and private receipts `a81bc99`, recipient security and decryption explanations `3dd8e64`, verify a conversation partner `b8b1a69`, two-account integration tests and server inspection `7f33c7b`, soft-logout client rebuild `36f0443` (Phase 2 defect), live-sync readiness / invitation dates / load-older `bf05ac6`, verification-request line / history on open / offline start `588efaa`, and documentation `810615d`. **Pushed 2026-10-24**; CI run 40031270158 on `810615d` is green on all four jobs on the first run: checks, secrets-scan, dev-env (API `/ready` 200, PoC 31/31, integration 5 files / 18 tests, inspection 9/9 including "integration room holds encrypted events only", Synapse 1.163.2) and poc-e2ee.
+**Phase 3 complete — exit gate accepted by the owner on 2026-10-24; ADR-0004 Accepted.** Implemented 2026-10-23 as the seven planned commits plus fixes on local `main` on top of `41491d4`: conversation list and invitations `1648408`, start by identifier `5ae72d5` (+ `36d6ac2` test typing), conversation view with honest states `1dc666d`, pagination and private receipts `a81bc99`, recipient security and decryption explanations `3dd8e64`, verify a conversation partner `b8b1a69`, two-account integration tests and server inspection `7f33c7b`, soft-logout client rebuild `36f0443` (Phase 2 defect), live-sync readiness / invitation dates / load-older `bf05ac6`, verification-request line / history on open / offline start `588efaa`, and documentation `810615d`. **Pushed 2026-10-24**; CI run 40031270158 on `810615d` is green on all four jobs on the first run: checks, secrets-scan, dev-env (API `/ready` 200, PoC 31/31, integration 5 files / 18 tests, inspection 9/9 including "integration room holds encrypted events only", Synapse 1.163.2) and poc-e2ee.
 
 ## Current task
-Owner acceptance of the Phase 3 exit gate (evidence below) and ADR-0004. No Phase 4 work has started.
+Phase 4 plan for owner approval (AGENTS.md step 2), checked against the Phase 4 exit gate in IMPLEMENTATION_PLAN.md. No Phase 4 code until approved.
 
 ## Completed (Phase 3)
 Labels follow AGENTS.md §12. Unit = jsdom/Node without a network; integration = Node against the compose Synapse 1.163.1 (`pnpm test:integration`); manual = built-in browser, two origins (`localhost`, `second.localhost`) as two accounts.
@@ -51,7 +51,7 @@ Executed 2026-10-23 on Windows 11, Node 22, pnpm 12, TypeScript 6.0.3, Docker De
 | Unverified-device and undecryptable-message cases are tested | integration (unverified second device; late device undecryptable) + unit (wording per code) |
 | No plaintext fallback is possible | unit (refusal, disabled composer) + integration (unencrypted room refused before any request) + inspection |
 
-The gate is **satisfied locally and in CI**; it closes when the owner accepts the evidence and ADR-0004.
+Gate **closed 2026-10-24**: evidence accepted by the owner; ADR-0004 Accepted.
 
 ## Blockers and risks
 - **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5).
@@ -82,7 +82,7 @@ The gate is **satisfied locally and in CI**; it closes when the owner accepts th
 - **Soft logout rebuilds the client on the same stores** (ADR-0004 D11, amends ADR-0003 D4).
 
 ## Next approved action
-Owner reviews the Phase 3 evidence and ADR-0004 and accepts or reopens the gate. Phase 4 (complete web experience) starts only in plan mode after acceptance.
+Produce the Phase 4 plan (plan mode, no code) and present it for approval. Implementation starts only after the owner approves the plan.
 
 ## Last updated
 2026-10-24

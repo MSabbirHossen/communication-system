@@ -1,6 +1,6 @@
 # ADR-0004 — One-to-one encrypted messaging (web client)
 
-**Status:** Proposed — for the project owner's approval at the Phase 3 exit gate  
+**Status:** **Accepted** — approved by the project owner on 2026-10-24 at the Phase 3 exit gate  
 **Date:** 2026-10-23  
 **Deciders:** Project owner (read receipts, unverified devices and discovery decided 2026-10-23); implementation by the AI contributor  
 **Inputs:** `docs/PRD.md` FR-04 to FR-07, §10; `docs/TRD.md` §6, §7, §8.4, §12.2; `docs/APP_FLOW.md` 5.3, 5.4, 5.5, §6; `docs/UI_UX_BRIEF.md` §6.4 to §6.7; `docs/IMPLEMENTATION_PLAN.md` Phase 3; ADR-0001, ADR-0003; `docs/security/THREAT_MODEL.md`.
