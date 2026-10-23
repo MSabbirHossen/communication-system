@@ -1,0 +1,75 @@
+// Test helpers: a SessionController with faked dependencies, and a render wrapper.
+import { render } from "@testing-library/react";
+import { RouterProvider } from "react-router";
+import { vi } from "vitest";
+import type { MatrixClient } from "../matrix/client";
+import type { StoredSession } from "../matrix/sessionStore";
+import { createTestRouter } from "../routes";
+import { SessionController, type SessionDeps } from "../session/controller";
+import { SessionProvider } from "../session/SessionProvider";
+import { ThemeProvider } from "../shell/ThemeProvider";
+
+export const testSession: StoredSession = {
+  version: 1,
+  homeserverUrl: "http://localhost:8008",
+  userId: "@alice:localhost",
+  deviceId: "DEVTEST",
+  accessToken: "syt_test_token",
+  refreshToken: "syr_test_token",
+  createdAt: 0,
+};
+
+export const fakeClient = () =>
+  ({
+    getUserId: () => testSession.userId,
+    getDeviceId: () => testSession.deviceId,
+  }) as unknown as MatrixClient;
+
+export const silentLogger = () => {
+  const l = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn(), child: vi.fn() };
+  l.child.mockReturnValue(l);
+  return l;
+};
+
+/** Faked dependencies; override any to script a scenario. */
+export function fakeDeps(overrides: Partial<SessionDeps> = {}): SessionDeps {
+  const deps: SessionDeps = {
+    homeserverUrl: "http://localhost:8008",
+    logger: silentLogger() as unknown as SessionDeps["logger"],
+    loadSession: vi.fn(async () => null),
+    saveSession: vi.fn(async () => {}),
+    clearSession: vi.fn(async () => {}),
+    login: vi.fn(async () => testSession),
+    register: vi.fn(async () => testSession),
+    logoutRemote: vi.fn(async () => {}),
+    createMatrixClient: vi.fn(async () => fakeClient()),
+    startSync: vi.fn(async () => {}),
+    stopAndClearClient: vi.fn(async () => {}),
+    ...overrides,
+  };
+  return deps;
+}
+
+/** A controller already in the given state (ready = restored session). */
+export async function controllerIn(
+  status: "signed_out" | "ready",
+  overrides: Partial<SessionDeps> = {},
+): Promise<SessionController> {
+  const deps = fakeDeps({
+    loadSession: vi.fn(async () => (status === "ready" ? testSession : null)),
+    ...overrides,
+  });
+  const c = new SessionController(deps);
+  await c.boot();
+  return c;
+}
+
+export function renderApp(path: string, controller: SessionController) {
+  return render(
+    <ThemeProvider>
+      <SessionProvider controller={controller}>
+        <RouterProvider router={createTestRouter([path])} />
+      </SessionProvider>
+    </ThemeProvider>,
+  );
+}

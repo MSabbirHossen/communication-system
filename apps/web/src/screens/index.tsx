@@ -1,6 +1,7 @@
 import { Link, useOutletContext, useRouteError } from "react-router";
 import { t, type Locale, LOCALES, getLocale, setLocale } from "../i18n";
 import { useTheme, type ThemePreference } from "../shell/ThemeProvider";
+import { useSession, useSessionController } from "../session/SessionProvider";
 
 type ShellContext = { desktop: boolean };
 
@@ -21,15 +22,15 @@ export function WelcomeScreen() {
       </h1>
       <p className="type-body">{t("welcome.body")}</p>
       <div className="actions">
-        <button type="button" className="button button--primary" disabled title={t("comingSoon")}>
-          {t("welcome.signIn")}
-        </button>
-        <button type="button" className="button" disabled title={t("comingSoon")}>
+        <Link to="/register" className="button button--primary">
           {t("welcome.create")}
-        </button>
+        </Link>
+        <Link to="/login" className="button">
+          {t("welcome.signIn")}
+        </Link>
       </div>
-      <Link to="/chats" className="link">
-        {t("nav.chats")} →
+      <Link to="/privacy" className="link">
+        {t("welcome.privacy")}
       </Link>
     </section>
   );
@@ -63,12 +64,30 @@ export function PeopleScreen() {
 
 export function SettingsScreen() {
   const { preference, setPreference } = useTheme();
+  const controller = useSessionController();
+  const { session } = useSession();
   const options: ThemePreference[] = ["system", "light", "dark"];
   return (
     <section className="pane" aria-labelledby="settings-title">
       <h1 id="settings-title" className="type-heading pane__title">
         {t("settings.title")}
       </h1>
+      {session && (
+        <div className="field">
+          <p className="type-body">
+            {t("settings.signedInAs")} <code>{session.userId}</code>
+          </p>
+          <button
+            type="button"
+            className="button"
+            onClick={() => {
+              void controller.signOut();
+            }}
+          >
+            {t("settings.signOut")}
+          </button>
+        </div>
+      )}
       <fieldset className="field">
         <legend className="type-body">{t("settings.theme")}</legend>
         {options.map((o) => (

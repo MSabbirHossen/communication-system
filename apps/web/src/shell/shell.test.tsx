@@ -1,45 +1,40 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { RouterProvider } from "react-router";
-import { createTestRouter } from "../routes";
-import { ThemeProvider, applyTheme } from "./ThemeProvider";
+import { applyTheme } from "./ThemeProvider";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { mockViewport } from "../test/setup";
+import { controllerIn, renderApp } from "../test/session";
 
-function renderAt(path: string) {
-  return render(
-    <ThemeProvider>
-      <RouterProvider router={createTestRouter([path])} />
-    </ThemeProvider>,
-  );
+async function renderAt(path: string) {
+  return renderApp(path, await controllerIn("ready"));
 }
 
 describe("responsive shell", () => {
-  it("renders a navigation rail and two panes at desktop width", () => {
+  it("renders a navigation rail and two panes at desktop width", async () => {
     mockViewport(true);
-    renderAt("/chats");
+    await renderAt("/chats");
     expect(screen.getByRole("navigation", { name: "Primary" })).toHaveClass("nav--rail");
     expect(document.querySelector('[data-panes="2"]')).not.toBeNull();
     expect(screen.getByRole("region", { name: "Select a conversation" })).toBeInTheDocument();
   });
-  it("renders bottom navigation and a single pane below the desktop breakpoint", () => {
+  it("renders bottom navigation and a single pane below the desktop breakpoint", async () => {
     mockViewport(false);
-    renderAt("/chats");
+    await renderAt("/chats");
     expect(screen.getByRole("navigation", { name: "Primary" })).toHaveClass("nav--bottom");
     expect(document.querySelector('[data-panes="1"]')).not.toBeNull();
     expect(screen.queryByRole("region", { name: "Select a conversation" })).toBeNull();
   });
-  it("every navigation item has an accessible name and the active one is marked", () => {
+  it("every navigation item has an accessible name and the active one is marked", async () => {
     mockViewport(true);
-    renderAt("/people");
+    await renderAt("/people");
     for (const name of ["Chats", "People", "Settings"]) {
       expect(screen.getByRole("link", { name })).toBeInTheDocument();
     }
     expect(screen.getByRole("link", { name: "People" })).toHaveAttribute("aria-current", "page");
   });
-  it("shows the not-found screen for unknown routes", () => {
-    renderAt("/does-not-exist");
+  it("shows the not-found screen for unknown routes", async () => {
+    await renderAt("/does-not-exist");
     expect(screen.getByRole("alert")).toHaveTextContent("Page not found");
   });
 });
@@ -49,7 +44,7 @@ describe("offline state", () => {
     mockViewport(true);
     const online = vi.spyOn(navigator, "onLine", "get");
     online.mockReturnValue(true);
-    renderAt("/chats");
+    await renderAt("/chats");
     expect(screen.queryByRole("status")).toBeNull();
     online.mockReturnValue(false);
     await act(async () => {
@@ -64,7 +59,7 @@ describe("theme", () => {
   it("toggles data-theme on <html> and persists the preference", async () => {
     mockViewport(true);
     const user = userEvent.setup();
-    renderAt("/settings");
+    await renderAt("/settings");
     expect(document.documentElement.dataset.theme).toBeUndefined();
     await user.click(screen.getByRole("radio", { name: "Dark" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
