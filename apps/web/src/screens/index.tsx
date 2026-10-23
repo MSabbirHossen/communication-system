@@ -3,15 +3,6 @@ import { t, type Locale, LOCALES, getLocale, setLocale } from "../i18n";
 import { useTheme, type ThemePreference } from "../shell/ThemeProvider";
 import { useSession, useSessionController } from "../session/SessionProvider";
 
-function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="empty">
-      <h2 className="type-heading">{title}</h2>
-      <p className="type-body text-muted">{body}</p>
-    </div>
-  );
-}
-
 export function WelcomeScreen() {
   return (
     <section className="screen screen--centered" aria-labelledby="welcome-title">
@@ -30,15 +21,6 @@ export function WelcomeScreen() {
       <Link to="/privacy" className="link">
         {t("welcome.privacy")}
       </Link>
-    </section>
-  );
-}
-
-export function PeopleScreen() {
-  return (
-    <section className="pane" aria-label={t("nav.people")}>
-      <h1 className="type-heading pane__title">{t("nav.people")}</h1>
-      <EmptyState title={t("people.empty.title")} body={t("people.empty.body")} />
     </section>
   );
 }

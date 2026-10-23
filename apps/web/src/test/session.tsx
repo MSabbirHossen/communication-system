@@ -31,6 +31,7 @@ export const fakeClient = () => {
   return {
     getUserId: () => testSession.userId,
     getDeviceId: () => testSession.deviceId,
+    getDomain: () => "localhost",
     on: (e: string, cb: (...a: unknown[]) => void) => em.on(e, cb),
     removeListener: (e: string, cb: (...a: unknown[]) => void) => em.removeListener(e, cb),
     emit: (e: string, ...a: unknown[]) => em.emit(e, ...a),

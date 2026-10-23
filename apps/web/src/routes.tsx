@@ -1,14 +1,9 @@
 import { createBrowserRouter, createMemoryRouter, type RouteObject } from "react-router";
 import { AppShell } from "./shell/AppShell";
-import {
-  NotFoundScreen,
-  PeopleScreen,
-  RouteErrorScreen,
-  SettingsScreen,
-  WelcomeScreen,
-} from "./screens";
+import { NotFoundScreen, RouteErrorScreen, SettingsScreen, WelcomeScreen } from "./screens";
 import { LoginScreen, PrivacyScreen, RegisterScreen } from "./screens/auth";
 import { ChatsScreen, NoConversationSelected } from "./screens/Chats";
+import { NewConversationScreen } from "./screens/NewConversation";
 import { PendingScreen } from "./screens/pending";
 import { DevicesSecurityScreen } from "./screens/DevicesSecurity";
 import { SecureDeviceSetupScreen } from "./screens/SecureDeviceSetup";
@@ -61,11 +56,11 @@ export const routes: RouteObject[] = [
             element: <ChatsScreen />,
             children: [
               { index: true, element: <NoConversationSelected /> },
-              { path: "new", element: <PendingScreen /> },
+              { path: "new", element: <NewConversationScreen /> },
               { path: ":roomId", element: <PendingScreen /> },
             ],
           },
-          { path: "/people", element: <PeopleScreen /> },
+          { path: "/people", element: <NewConversationScreen /> },
           { path: "/settings", element: <SettingsScreen /> },
           { path: "/settings/devices", element: <DevicesSecurityScreen /> },
           { path: "/settings/devices/verify/:deviceId", element: <VerifyDeviceScreen /> },

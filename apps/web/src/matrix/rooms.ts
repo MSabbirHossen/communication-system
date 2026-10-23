@@ -1,7 +1,13 @@
 // Direct-conversation model over the SDK's room state (ADR-0004). One Matrix room per pair of
 // users; the SDK is the source of truth, this module only reads it into a list the screens
 // can render and keeps the `m.direct` account data in step (the SDK does not maintain it).
-import { EventType, NotificationCountType, type MatrixClient, type Room } from "matrix-js-sdk";
+import {
+  EventType,
+  NotificationCountType,
+  Preset,
+  type MatrixClient,
+  type Room,
+} from "matrix-js-sdk";
 
 export type ConversationMembership = "join" | "invite";
 
@@ -119,4 +125,62 @@ export async function acceptInvite(client: MatrixClient, roomId: string): Promis
 /** Decline an invitation (leaves the room; nothing is recorded). */
 export async function declineInvite(client: MatrixClient, roomId: string): Promise<void> {
   await client.leave(roomId);
+}
+
+// --- Starting a conversation (owner decision 2026-10-23: exact identifier only) ------------
+
+/** Matrix user id grammar accepted for input: `@localpart:server[:port]`. */
+const USER_ID = /^@[a-z0-9._=/+-]+:[A-Za-z0-9.-]+(?::\d{1,5})?$/;
+const LOCALPART = /^[a-z0-9._=/+-]+$/;
+
+export type ResolveResult =
+  { ok: true; userId: string } | { ok: false; reason: "empty" | "invalid" | "self" };
+
+/** Turn what the user typed into a full user id (`bob` → `@bob:<server>`); never a network call. */
+export function resolveUserId(input: string, serverName: string, me: string): ResolveResult {
+  const raw = input.trim();
+  if (!raw) return { ok: false, reason: "empty" };
+  const userId = raw.startsWith("@") ? raw : LOCALPART.test(raw) ? `@${raw}:${serverName}` : raw;
+  if (!USER_ID.test(userId)) return { ok: false, reason: "invalid" };
+  if (userId === me) return { ok: false, reason: "self" };
+  return { ok: true, userId };
+}
+
+export type LookupResult =
+  { found: true; userId: string; displayName: string } | { found: false; userId: string };
+
+/** Check that an account exists and fetch its display name (profile endpoint). */
+export async function lookupUser(client: MatrixClient, userId: string): Promise<LookupResult> {
+  try {
+    const profile = await client.getProfileInfo(userId);
+    return { found: true, userId, displayName: profile.displayname?.trim() || userId };
+  } catch (err) {
+    const code = (err as { errcode?: string }).errcode;
+    if (code === "M_NOT_FOUND") return { found: false, userId };
+    throw err;
+  }
+}
+
+/** An existing direct room with `userId` (joined first, then an invitation from them). */
+export function findDirectRoom(client: MatrixClient, userId: string): DirectConversation | null {
+  const list = listDirectConversations(client).filter((c) => c.otherUserId === userId);
+  return list.find((c) => c.membership === "join") ?? list[0] ?? null;
+}
+
+/** Create an invite-only, encrypted direct room with `userId` and record it in `m.direct`. */
+export async function createDirectRoom(client: MatrixClient, userId: string): Promise<string> {
+  const { room_id: roomId } = await client.createRoom({
+    is_direct: true,
+    invite: [userId],
+    preset: Preset.TrustedPrivateChat,
+    initial_state: [
+      {
+        type: EventType.RoomEncryption,
+        state_key: "",
+        content: { algorithm: "m.megolm.v1.aes-sha2" },
+      },
+    ],
+  });
+  await recordDirectRoom(client, userId, roomId);
+  return roomId;
 }

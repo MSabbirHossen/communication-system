@@ -2,11 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import type { MatrixClient, Room } from "matrix-js-sdk";
 import {
   acceptInvite,
+  createDirectRoom,
   declineInvite,
+  findDirectRoom,
   isDirectRoom,
   listDirectConversations,
+  lookupUser,
   otherUserOf,
   recordDirectRoom,
+  resolveUserId,
 } from "./rooms";
 
 export const ME = "@alice:localhost";
@@ -199,5 +203,78 @@ describe("direct conversation model", () => {
     expect(setAccountData).toHaveBeenCalledWith("m.direct", { [BOB]: ["!inv"] });
     await declineInvite(client, "!inv");
     expect(leave).toHaveBeenCalledWith("!inv");
+  });
+});
+
+describe("starting a conversation by identifier", () => {
+  it("resolves local usernames and full ids, rejecting bad input and the user's own id", () => {
+    expect(resolveUserId("bob", "localhost", ME)).toEqual({ ok: true, userId: BOB });
+    expect(resolveUserId("  @bob:localhost ", "localhost", ME)).toEqual({ ok: true, userId: BOB });
+    expect(resolveUserId("@bob:example.org:8448", "localhost", ME)).toEqual({
+      ok: true,
+      userId: "@bob:example.org:8448",
+    });
+    expect(resolveUserId("", "localhost", ME)).toEqual({ ok: false, reason: "empty" });
+    expect(resolveUserId("Bob", "localhost", ME)).toEqual({ ok: false, reason: "invalid" });
+    expect(resolveUserId("bob smith", "localhost", ME)).toEqual({ ok: false, reason: "invalid" });
+    expect(resolveUserId("@bob", "localhost", ME)).toEqual({ ok: false, reason: "invalid" });
+    expect(resolveUserId("alice", "localhost", ME)).toEqual({ ok: false, reason: "self" });
+  });
+
+  it("looks up a profile, treating M_NOT_FOUND as unknown and passing other errors through", async () => {
+    const getProfileInfo = vi.fn(async (userId: string) => {
+      if (userId === BOB) return { displayname: "  Bob  " };
+      if (userId === "@blank:localhost") return {};
+      if (userId === "@down:localhost") throw new Error("boom");
+      throw Object.assign(new Error("not found"), { errcode: "M_NOT_FOUND" });
+    });
+    const client = { getProfileInfo } as unknown as MatrixClient;
+    expect(await lookupUser(client, BOB)).toEqual({ found: true, userId: BOB, displayName: "Bob" });
+    expect(await lookupUser(client, "@blank:localhost")).toEqual({
+      found: true,
+      userId: "@blank:localhost",
+      displayName: "@blank:localhost",
+    });
+    expect(await lookupUser(client, "@nobody:localhost")).toEqual({
+      found: false,
+      userId: "@nobody:localhost",
+    });
+    await expect(lookupUser(client, "@down:localhost")).rejects.toThrow("boom");
+  });
+
+  it("finds an existing direct room, preferring joined rooms over invitations", () => {
+    const joined = fakeRoom({ roomId: "!j", lastActiveTs: 1 });
+    const invite = fakeRoom({
+      roomId: "!i",
+      myMembership: "invite",
+      dmInviter: BOB,
+      members: [{ userId: ME, membership: "invite" }, { userId: BOB }],
+      lastActiveTs: 9,
+    });
+    expect(
+      findDirectRoom(fakeRoomClient([invite, joined], { [BOB]: ["!j"] }).client, BOB)?.roomId,
+    ).toBe("!j");
+    expect(findDirectRoom(fakeRoomClient([invite]).client, BOB)?.roomId).toBe("!i");
+    expect(findDirectRoom(fakeRoomClient([]).client, BOB)).toBeNull();
+  });
+
+  it("creates an invite-only encrypted room and records it", async () => {
+    const { client, setAccountData } = fakeRoomClient([]);
+    const createRoom = vi.fn(async () => ({ room_id: "!new" }));
+    (client as unknown as { createRoom: typeof createRoom }).createRoom = createRoom;
+    expect(await createDirectRoom(client, BOB)).toBe("!new");
+    expect(createRoom).toHaveBeenCalledWith({
+      is_direct: true,
+      invite: [BOB],
+      preset: "trusted_private_chat",
+      initial_state: [
+        {
+          type: "m.room.encryption",
+          state_key: "",
+          content: { algorithm: "m.megolm.v1.aes-sha2" },
+        },
+      ],
+    });
+    expect(setAccountData).toHaveBeenCalledWith("m.direct", { [BOB]: ["!new"] });
   });
 });

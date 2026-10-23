@@ -139,12 +139,8 @@ describe("conversation list", () => {
     await user.click(within(item).getByRole("button", { name: "Accept" }));
     await waitFor(() => expect(joinRoom).toHaveBeenCalledWith("!inv"));
     expect(setAccountData).toHaveBeenCalledWith("m.direct", { [BOB]: ["!inv"] });
-    // Accepting opens the conversation route.
-    await waitFor(() =>
-      expect(
-        window.location.pathname === "/chats/!inv" || screen.queryByRole("status"),
-      ).toBeTruthy(),
-    );
+    // Accepting opens the conversation route (a placeholder until the next commit).
+    expect(await screen.findByRole("status")).toHaveTextContent(/next commit/i);
     expect(leave).not.toHaveBeenCalled();
   });
 
