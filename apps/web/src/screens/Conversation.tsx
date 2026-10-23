@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 import { Composer } from "../components/Composer";
 import { t, type MessageKey } from "../i18n";
@@ -7,6 +7,9 @@ import { acceptInvite, declineInvite, type DirectConversation } from "../matrix/
 import {
   EncryptionRequiredError,
   discardFailed,
+  hasOlderHistory,
+  loadOlder,
+  markReadPrivately,
   retrySend,
   sendText,
   type MessageItem,
@@ -18,6 +21,9 @@ import type { ShellContext } from "./Chats";
 
 /** Drafts survive navigating between conversations within the session (never persisted). */
 const drafts = new Map<string, string>();
+
+/** How long the conversation must stay open and visible before it counts as read. */
+const READ_DELAY_MS = 400;
 
 function sameDay(a: number, b: number): boolean {
   const x = new Date(a);
@@ -162,13 +168,47 @@ export function ConversationScreen() {
   const items = useRoomTimeline(room);
   const [draft, setDraft] = useState(() => drafts.get(roomId) ?? "");
   const [error, setError] = useState<AuthError | "encryption_required" | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const listRef = useRef<HTMLOListElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const atBottom = useRef(true);
   const lastKey = items.at(-1)?.key;
+  const lastMine = items.at(-1)?.mine === true;
+  const hasMore = room ? hasOlderHistory(room) : false;
 
+  // Follow new messages when the view is at the bottom, and always after an own send.
   useEffect(() => {
     const el = endRef.current;
-    if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "end" });
-  }, [lastKey]);
+    if (!el || typeof el.scrollIntoView !== "function") return;
+    if (atBottom.current || lastMine) el.scrollIntoView({ block: "end" });
+  }, [lastKey, lastMine]);
+
+  // Mark the latest event read (privately: only this account's devices learn about it)
+  // once the conversation has been open and visible for a moment (owner decision).
+  useEffect(() => {
+    if (!client || !room || conversation?.membership !== "join") return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      timer = setTimeout(
+        () => void markReadPrivately(client, room).catch(() => undefined),
+        READ_DELAY_MS,
+      );
+    };
+    schedule();
+    document.addEventListener("visibilitychange", schedule);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", schedule);
+    };
+  }, [client, room, conversation?.membership, lastKey]);
+
+  const onScroll = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  }, []);
 
   if (!client || !room || !conversation) {
     return (
@@ -189,10 +229,29 @@ export function ConversationScreen() {
   const send = (text: string) => {
     setError(null);
     updateDraft("");
+    atBottom.current = true;
     sendText(client, roomId, text).catch((e: unknown) => {
       if (e instanceof EncryptionRequiredError) setError("encryption_required");
       else setError(toAuthError(e));
     });
+  };
+
+  const older = async () => {
+    const el = listRef.current;
+    const before = el?.scrollHeight ?? 0;
+    setLoadingOlder(true);
+    setError(null);
+    try {
+      await loadOlder(client, room);
+      // Keep the messages that were on screen where they were.
+      requestAnimationFrame(() => {
+        if (el) el.scrollTop += el.scrollHeight - before;
+      });
+    } catch (e) {
+      setError(toAuthError(e));
+    } finally {
+      setLoadingOlder(false);
+    }
   };
 
   const eventFor = (item: MessageItem) =>
@@ -202,6 +261,7 @@ export function ConversationScreen() {
     item,
     separator: i === 0 || !sameDay(items[i - 1]!.ts, item.ts),
   }));
+
   return (
     <div className="chat">
       <header className="chat__header">
@@ -235,34 +295,49 @@ export function ConversationScreen() {
         <InvitePrompt conversation={conversation} />
       ) : (
         <>
-          <ol className="messages" aria-label={t("chat.messages")}>
+          <ol
+            className="messages"
+            aria-label={t("chat.messages")}
+            ref={listRef}
+            onScroll={onScroll}
+          >
+            {hasMore && (
+              <li className="messages__system">
+                <button
+                  type="button"
+                  className="button button--inline"
+                  disabled={loadingOlder}
+                  onClick={() => void older()}
+                >
+                  {loadingOlder ? t("loading") : t("chat.loadOlder")}
+                </button>
+              </li>
+            )}
             {items.length === 0 && (
               <li className="messages__system type-meta text-muted">{t("chat.empty")}</li>
             )}
-            {rows.map(({ item, separator }) => {
-              return (
-                <li key={item.key} className="messages__group">
-                  {separator && (
-                    <p className="messages__date type-meta text-muted">
-                      {dateFmt.format(new Date(item.ts))}
-                    </p>
-                  )}
-                  <ul className="messages__inner">
-                    <MessageRow
-                      item={item}
-                      onRetry={() => {
-                        const ev = eventFor(item);
-                        if (ev) retrySend(client, room, ev).catch(() => undefined);
-                      }}
-                      onDiscard={() => {
-                        const ev = eventFor(item);
-                        if (ev) discardFailed(client, ev);
-                      }}
-                    />
-                  </ul>
-                </li>
-              );
-            })}
+            {rows.map(({ item, separator }) => (
+              <li key={item.key} className="messages__group">
+                {separator && (
+                  <p className="messages__date type-meta text-muted">
+                    {dateFmt.format(new Date(item.ts))}
+                  </p>
+                )}
+                <ul className="messages__inner">
+                  <MessageRow
+                    item={item}
+                    onRetry={() => {
+                      const ev = eventFor(item);
+                      if (ev) retrySend(client, room, ev).catch(() => undefined);
+                    }}
+                    onDiscard={() => {
+                      const ev = eventFor(item);
+                      if (ev) discardFailed(client, ev);
+                    }}
+                  />
+                </ul>
+              </li>
+            ))}
             <li aria-hidden="true">
               <div ref={endRef} />
             </li>

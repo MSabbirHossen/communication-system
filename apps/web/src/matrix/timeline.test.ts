@@ -5,6 +5,9 @@ import {
   EncryptionRequiredError,
   canSendEncrypted,
   discardFailed,
+  hasOlderHistory,
+  loadOlder,
+  markReadPrivately,
   retrySend,
   sendText,
   statusOf,
@@ -69,12 +72,21 @@ export function fakeEvent(spec: FakeEventSpec = {}) {
   return ev as unknown as MatrixEvent & typeof ev;
 }
 
-export function fakeTimelineRoom(roomId: string, events: MatrixEvent[], encrypted = true) {
+export function fakeTimelineRoom(
+  roomId: string,
+  events: MatrixEvent[],
+  encrypted = true,
+  backToken: string | null = null,
+) {
   const room = {
     roomId,
     events,
+    backToken,
     hasEncryptionStateEvent: () => encrypted,
-    getLiveTimeline: () => ({ getEvents: () => room.events }),
+    getLiveTimeline: () => ({
+      getEvents: () => room.events,
+      getPaginationToken: () => room.backToken,
+    }),
     findEventById: (id: string) => room.events.find((e) => e.getId() === id),
   };
   return room as unknown as Room & typeof room;
@@ -91,9 +103,13 @@ export function fakeTimelineClient(
   const sendTextMessage = vi.fn(async () => ({ event_id: "$sent" }));
   const resendEvent = vi.fn(async () => ({ event_id: "$resent" }));
   const cancelPendingEvent = vi.fn();
+  const scrollback = vi.fn(async (room: Room) => room);
+  const sendReadReceipt = vi.fn(async (_ev: MatrixEvent, _type?: string) => ({}));
   const client = {
     getUserId: () => ME,
     getCrypto: () => (opts.crypto === false ? undefined : crypto),
+    scrollback,
+    sendReadReceipt,
     getRoom: (id: string) => rooms.find((r) => r.roomId === id) ?? null,
     on: (e: string, cb: (...a: unknown[]) => void) => em.on(e, cb),
     removeListener: (e: string, cb: (...a: unknown[]) => void) => em.removeListener(e, cb),
@@ -101,7 +117,16 @@ export function fakeTimelineClient(
     resendEvent,
     cancelPendingEvent,
   } as unknown as MatrixClient;
-  return { client, em, crypto, sendTextMessage, resendEvent, cancelPendingEvent };
+  return {
+    client,
+    em,
+    crypto,
+    sendTextMessage,
+    resendEvent,
+    cancelPendingEvent,
+    scrollback,
+    sendReadReceipt,
+  };
 }
 
 describe("message status", () => {
@@ -218,5 +243,41 @@ describe("sending", () => {
     expect(resendEvent).toHaveBeenCalledWith(ev, room);
     discardFailed(client, ev);
     expect(cancelPendingEvent).toHaveBeenCalledWith(ev);
+  });
+});
+
+describe("history and receipts", () => {
+  it("reports older history from the back-pagination token and loads it through scrollback", async () => {
+    const more = fakeTimelineRoom("!r", [], true, "t1");
+    const { client, scrollback } = fakeTimelineClient([more]);
+    expect(hasOlderHistory(more)).toBe(true);
+    more.backToken = null;
+    expect(await loadOlder(client, more)).toBe(false);
+    expect(scrollback).toHaveBeenCalledWith(more, 30);
+    await loadOlder(client, more, 50);
+    expect(scrollback).toHaveBeenLastCalledWith(more, 50);
+  });
+
+  it("sends one private receipt for the latest accepted event, never a public one", async () => {
+    const sent = fakeEvent({ id: "$sent" });
+    const pending = fakeEvent({ id: "~pending", sender: ME, status: EventStatus.SENDING });
+    const room = fakeTimelineRoom("!rr", [fakeEvent({ id: "$old" }), sent, pending]);
+    const { client, sendReadReceipt } = fakeTimelineClient([room]);
+    await markReadPrivately(client, room);
+    expect(sendReadReceipt).toHaveBeenCalledWith(sent, "m.read.private");
+    await markReadPrivately(client, room);
+    expect(sendReadReceipt).toHaveBeenCalledTimes(1);
+    const newer = fakeEvent({ id: "$newer" });
+    room.events.push(newer);
+    await markReadPrivately(client, room);
+    expect(sendReadReceipt).toHaveBeenLastCalledWith(newer, "m.read.private");
+    for (const call of sendReadReceipt.mock.calls) expect(call[1]).not.toBe("m.read");
+  });
+
+  it("does nothing when only pending events exist", async () => {
+    const room = fakeTimelineRoom("!p", [fakeEvent({ id: "~x", status: EventStatus.QUEUED })]);
+    const { client, sendReadReceipt } = fakeTimelineClient([room]);
+    await markReadPrivately(client, room);
+    expect(sendReadReceipt).not.toHaveBeenCalled();
   });
 });

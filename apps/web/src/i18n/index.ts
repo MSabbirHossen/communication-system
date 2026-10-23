@@ -51,6 +51,7 @@ const en = {
   "chat.composer.placeholder": "Write a message (Enter to send, Shift+Enter for a new line)",
   "chat.composer.disabled": "Messages cannot be sent here",
   "chat.send": "Send",
+  "chat.loadOlder": "Load older messages",
   "chat.status.pending": "Sending\u2026",
   "chat.status.sent": "Sent",
   "chat.status.failed": "Not sent",

@@ -75,7 +75,7 @@ export function fakeRoom(spec: FakeRoomSpec): Room {
     getLastActiveTimestamp: () => spec.lastActiveTs ?? 0,
     getUnreadNotificationCount: () => spec.unread ?? 0,
     hasEncryptionStateEvent: () => spec.encrypted ?? true,
-    getLiveTimeline: () => ({ getEvents: () => events }),
+    getLiveTimeline: () => ({ getEvents: () => events, getPaginationToken: () => null }),
   } as unknown as Room;
 }
 

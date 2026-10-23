@@ -4,8 +4,10 @@
 // without encryption is refused here, before any request (TM-04 app guard).
 import {
   EventStatus,
+  EventTimeline,
   EventType,
   MatrixEventEvent,
+  ReceiptType,
   RoomEvent,
   type MatrixClient,
   type MatrixEvent,
@@ -148,4 +150,35 @@ export function retrySend(client: MatrixClient, room: Room, event: MatrixEvent):
 /** Drop a failed or queued send without sending it. */
 export function discardFailed(client: MatrixClient, event: MatrixEvent): void {
   client.cancelPendingEvent(event);
+}
+
+/** Whether the room's live timeline can be paginated further back. */
+export function hasOlderHistory(room: Room): boolean {
+  return room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) !== null;
+}
+
+/** Load up to `limit` older events into the live timeline; resolves to whether more remain. */
+export async function loadOlder(client: MatrixClient, room: Room, limit = 30): Promise<boolean> {
+  await client.scrollback(room, limit);
+  return hasOlderHistory(room);
+}
+
+const lastPrivateReceipt = new Map<string, string>();
+
+/**
+ * Mark the latest server-accepted event as read with a private receipt (m.read.private):
+ * the user's own devices learn it, nobody else does (owner decision 2026-10-23). Never
+ * sends the public m.read receipt. Skips pending local echoes and repeats.
+ */
+export async function markReadPrivately(client: MatrixClient, room: Room): Promise<void> {
+  const events = room.getLiveTimeline().getEvents();
+  for (let i = events.length - 1; i >= 0; i--) {
+    const ev = events[i]!;
+    const id = ev.getId();
+    if (!id || ev.status !== null) continue; // pending or failed local echo
+    if (lastPrivateReceipt.get(room.roomId) === id) return;
+    lastPrivateReceipt.set(room.roomId, id);
+    await client.sendReadReceipt(ev, ReceiptType.ReadPrivate);
+    return;
+  }
 }

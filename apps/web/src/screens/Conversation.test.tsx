@@ -14,11 +14,13 @@ function chatRoom(
     encrypted?: boolean;
     events?: MatrixEvent[];
     membership?: "join" | "invite";
+    backToken?: string | null;
   } = {},
 ) {
   const room = {
     roomId: opts.roomId ?? "!r:localhost",
     events: opts.events ?? [],
+    backToken: opts.backToken ?? null,
     getMyMembership: () => opts.membership ?? "join",
     getMembers: () => [
       { userId: ME, name: "Alice", membership: opts.membership ?? "join" },
@@ -32,7 +34,10 @@ function chatRoom(
     getLastActiveTimestamp: () => 1,
     getUnreadNotificationCount: () => 0,
     hasEncryptionStateEvent: () => opts.encrypted ?? true,
-    getLiveTimeline: () => ({ getEvents: () => room.events }),
+    getLiveTimeline: () => ({
+      getEvents: () => room.events,
+      getPaginationToken: () => room.backToken,
+    }),
     findEventById: (id: string) => room.events.find((e) => e.getId() === id),
   };
   return room as unknown as Room & typeof room;
@@ -45,6 +50,8 @@ function chatClient(room: Room, opts: { encryptionEnabled?: boolean } = {}) {
   const cancelPendingEvent = vi.fn();
   const joinRoom = vi.fn(async () => ({}));
   const leave = vi.fn(async () => ({}));
+  const scrollback = vi.fn(async (r: Room) => r);
+  const sendReadReceipt = vi.fn(async (_ev: MatrixEvent, _type?: string) => ({}));
   const client = {
     getUserId: () => ME,
     getDeviceId: () => "DEVTEST",
@@ -63,8 +70,20 @@ function chatClient(room: Room, opts: { encryptionEnabled?: boolean } = {}) {
     cancelPendingEvent,
     joinRoom,
     leave,
+    scrollback,
+    sendReadReceipt,
   } as unknown as MatrixClient;
-  return { client, em, sendTextMessage, resendEvent, cancelPendingEvent, joinRoom, leave };
+  return {
+    client,
+    em,
+    sendTextMessage,
+    resendEvent,
+    cancelPendingEvent,
+    joinRoom,
+    leave,
+    scrollback,
+    sendReadReceipt,
+  };
 }
 
 async function renderChat(
@@ -200,11 +219,12 @@ describe("conversation view", () => {
 
   it("shows an invitation prompt instead of the composer for an invited room", async () => {
     const room = chatRoom({ membership: "invite" });
-    const { joinRoom } = await renderChat(room);
+    const { joinRoom, sendReadReceipt } = await renderChat(room);
     expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull();
     const detail = screen.getByRole("region", { name: "Select a conversation" });
     await userEvent.setup().click(within(detail).getByRole("button", { name: "Accept" }));
     await waitFor(() => expect(joinRoom).toHaveBeenCalledWith(room.roomId));
+    expect(sendReadReceipt).not.toHaveBeenCalled();
   });
 
   it("shows a not-found state for an unknown room", async () => {
@@ -213,5 +233,35 @@ describe("conversation view", () => {
     const c = await controllerIn("ready", { createMatrixClient: vi.fn(async () => fake.client) });
     renderApp("/chats/!nope:localhost", c);
     expect(await screen.findByRole("alert")).toHaveTextContent(/conversation not found/i);
+  });
+});
+
+describe("history and read state", () => {
+  it("offers to load older messages while a back-pagination token exists", async () => {
+    const room = chatRoom({ backToken: "t1", events: [fakeEvent({ id: "$1" })] });
+    const { scrollback, em } = await renderChat(room);
+    const button = screen.getByRole("button", { name: "Load older messages" });
+    scrollback.mockImplementationOnce(async (r: Room) => {
+      (r as typeof room).backToken = null;
+      const older = fakeEvent({ id: "$0", content: { msgtype: "m.text", body: "older" } });
+      (r as typeof room).events.unshift(older);
+      em.emit("Room.timeline", older, r, true, false, {}); // the SDK announces paginated events
+      return r;
+    });
+    await userEvent.setup().click(button);
+    await waitFor(() => expect(scrollback).toHaveBeenCalledWith(room, 30));
+    expect(screen.getByRole("list", { name: "Messages" })).toHaveTextContent("older");
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Load older messages" })).toBeNull(),
+    );
+  });
+
+  it("marks the latest accepted message read with a private receipt after opening", async () => {
+    const last = fakeEvent({ id: "$last" });
+    const room = chatRoom({ events: [fakeEvent({ id: "$first" }), last] });
+    const { sendReadReceipt } = await renderChat(room);
+    await waitFor(() => expect(sendReadReceipt).toHaveBeenCalledWith(last, "m.read.private"));
+    expect(sendReadReceipt).toHaveBeenCalledTimes(1);
+    for (const call of sendReadReceipt.mock.calls) expect(call[1]).not.toBe("m.read");
   });
 });
