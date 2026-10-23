@@ -1,4 +1,5 @@
 // Test helpers: a SessionController with faked dependencies, and a render wrapper.
+import { EventEmitter } from "node:events";
 import { render } from "@testing-library/react";
 import { RouterProvider } from "react-router";
 import { vi } from "vitest";
@@ -21,11 +22,25 @@ export const testSession: StoredSession = {
   createdAt: 0,
 };
 
-export const fakeClient = () =>
-  ({
+/**
+ * A minimal client: identity, an event emitter the screens can subscribe to, no rooms, a
+ * completed sync. Tests that need rooms build their own (see screens/Chats.test.tsx).
+ */
+export const fakeClient = () => {
+  const em = new EventEmitter();
+  return {
     getUserId: () => testSession.userId,
     getDeviceId: () => testSession.deviceId,
-  }) as unknown as MatrixClient;
+    on: (e: string, cb: (...a: unknown[]) => void) => em.on(e, cb),
+    removeListener: (e: string, cb: (...a: unknown[]) => void) => em.removeListener(e, cb),
+    emit: (e: string, ...a: unknown[]) => em.emit(e, ...a),
+    getVisibleRooms: () => [],
+    getRoom: () => null,
+    getAccountData: () => undefined,
+    getSyncState: () => "SYNCING",
+    retryImmediately: () => true,
+  } as unknown as MatrixClient;
+};
 
 export const silentLogger = () => {
   const l = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn(), child: vi.fn() };

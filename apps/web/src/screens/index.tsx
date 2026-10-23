@@ -1,9 +1,7 @@
-import { Link, useOutletContext, useRouteError } from "react-router";
+import { Link, useRouteError } from "react-router";
 import { t, type Locale, LOCALES, getLocale, setLocale } from "../i18n";
 import { useTheme, type ThemePreference } from "../shell/ThemeProvider";
 import { useSession, useSessionController } from "../session/SessionProvider";
-
-type ShellContext = { desktop: boolean };
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
@@ -33,23 +31,6 @@ export function WelcomeScreen() {
         {t("welcome.privacy")}
       </Link>
     </section>
-  );
-}
-
-export function ChatsScreen() {
-  const { desktop } = useOutletContext<ShellContext>();
-  return (
-    <div className={`two-pane${desktop ? " two-pane--split" : ""}`} data-panes={desktop ? 2 : 1}>
-      <section className="pane pane--list" aria-label={t("nav.chats")}>
-        <h1 className="type-heading pane__title">{t("nav.chats")}</h1>
-        <EmptyState title={t("chats.empty.title")} body={t("chats.empty.body")} />
-      </section>
-      {desktop && (
-        <section className="pane pane--detail" aria-label={t("chats.select")}>
-          <EmptyState title={t("chats.select")} body="" />
-        </section>
-      )}
-    </div>
   );
 }
 

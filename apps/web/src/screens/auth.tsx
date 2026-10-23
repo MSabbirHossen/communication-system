@@ -14,10 +14,9 @@ function fieldMessage(e: FieldError | null): string | null {
 /** User-safe text for an AuthError; never echoes input or server text. */
 export function authErrorMessage(error: AuthError): string {
   if (error.code === "rate_limited" && error.retryAfterMs) {
-    return t("auth.error.rate_limited_after").replace(
-      "{seconds}",
-      String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))),
-    );
+    return t("auth.error.rate_limited_after", {
+      seconds: Math.max(1, Math.ceil(error.retryAfterMs / 1000)),
+    });
   }
   return t(`auth.error.${error.code}` as MessageKey);
 }

@@ -455,3 +455,72 @@ code {
 .notice__text {
   flex: 1 1 240px;
 }
+
+/* Conversation list (Phase 3) */
+.chats__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cs-space-3);
+  margin-bottom: var(--cs-space-3);
+}
+.chats__toolbar .pane__title {
+  margin-bottom: 0;
+}
+.pane--list .input {
+  margin-bottom: var(--cs-space-3);
+}
+.convo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--cs-space-1);
+}
+.convo {
+  border-radius: var(--cs-radius-md);
+}
+.convo__link {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cs-space-3);
+  padding: var(--cs-space-2) var(--cs-space-3);
+  border-radius: var(--cs-radius-md);
+  color: inherit;
+  text-decoration: none;
+  min-height: var(--cs-size-touch-target);
+}
+.convo__link:hover,
+.convo--active .convo__link {
+  background: var(--cs-color-bg);
+}
+.convo--active .convo__link {
+  outline: var(--cs-size-border-width) solid var(--cs-color-primary);
+}
+.convo__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.convo__name {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  font-weight: var(--cs-font-weight-medium, 500);
+}
+.convo__preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.convo__time {
+  flex: none;
+}
+.convo--invite {
+  padding: var(--cs-space-2) var(--cs-space-3);
+  border: var(--cs-size-border-width) solid var(--cs-color-border);
+}
+.convo__actions {
+  display: flex;
+  gap: var(--cs-space-2);
+  margin-top: var(--cs-space-2);
+}

@@ -22,8 +22,23 @@ const en = {
   "welcome.create": "Create account",
   "welcome.privacy": "Read the privacy notes",
   "chats.empty.title": "No conversations yet",
-  "chats.empty.body": "Start a conversation from People.",
+  "chats.empty.body": "Start one with someone's username or Matrix ID.",
   "chats.select": "Select a conversation",
+  "chats.list": "Conversations",
+  "chats.new": "New conversation",
+  "chats.search": "Search conversations",
+  "chats.search.noResults": "No conversations match.",
+  "chats.preview.you": "You: ",
+  "chats.preview.encrypted": "Encrypted message",
+  "chats.preview.none": "No messages yet",
+  "chats.unread": "{count} unread",
+  "chats.invite.label": "Invitation",
+  "chats.invite.body": "This person wants to start an encrypted conversation with you.",
+  "chats.invite.accept": "Accept",
+  "chats.invite.decline": "Decline",
+  "chats.sync.error": "Cannot reach the server to sync. Retrying…",
+  "chats.sync.retry": "Retry now",
+  "chats.pending": "This part of messaging arrives in the next commit.",
   "people.empty.title": "Find people",
   "people.empty.body": "Search is available after sign-in.",
   "settings.title": "Settings",
@@ -231,7 +246,14 @@ export function getLocale(): Locale {
   return current;
 }
 
-/** Translate a key; falls back to English, then to the key itself. */
-export function t(key: MessageKey): string {
-  return tables[current][key] ?? en[key] ?? key;
+/**
+ * Translate a key; falls back to English, then to the key itself. `vars` replaces
+ * `{name}` placeholders.
+ */
+export function t(key: MessageKey, vars?: Record<string, string | number>): string {
+  let s: string = tables[current][key] ?? en[key] ?? key;
+  if (vars) {
+    for (const [name, value] of Object.entries(vars)) s = s.split(`{${name}}`).join(String(value));
+  }
+  return s;
 }
