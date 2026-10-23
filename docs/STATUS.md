@@ -1,15 +1,15 @@
 # Project Status
 
 ## Active phase
-Phase 3 — One-to-one encrypted messaging (**implemented, tested and verified locally; exit gate awaiting the owner's review; not pushed**)
+Phase 3 — One-to-one encrypted messaging (**implemented, verified locally and in CI; exit gate awaiting the owner's acceptance**)
 
 ## Last completed milestone
 **Phase 2 complete — exit gate accepted by the owner on 2026-10-23; ADR-0003 Accepted.** CI green on `41491d4`. Phase 1 closed 2026-10-23; Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
 
-**Phase 3 implemented (2026-10-23)** as the seven planned commits plus fixes on local `main` on top of `41491d4`: conversation list and invitations `1648408`, start by identifier `5ae72d5` (+ `36d6ac2` test typing), conversation view with honest states `1dc666d`, pagination and private receipts `a81bc99`, recipient security and decryption explanations `3dd8e64`, verify a conversation partner `b8b1a69`, two-account integration tests and server inspection `7f33c7b`, soft-logout client rebuild `36f0443` (Phase 2 defect), live-sync readiness / invitation dates / load-older `bf05ac6`, verification-request line / history on open / offline start `588efaa`, and this documentation commit. **Not pushed**: the owner asked for a local report before pushing; CI has not run on these commits.
+**Phase 3 implemented (2026-10-23)** as the seven planned commits plus fixes on local `main` on top of `41491d4`: conversation list and invitations `1648408`, start by identifier `5ae72d5` (+ `36d6ac2` test typing), conversation view with honest states `1dc666d`, pagination and private receipts `a81bc99`, recipient security and decryption explanations `3dd8e64`, verify a conversation partner `b8b1a69`, two-account integration tests and server inspection `7f33c7b`, soft-logout client rebuild `36f0443` (Phase 2 defect), live-sync readiness / invitation dates / load-older `bf05ac6`, verification-request line / history on open / offline start `588efaa`, and documentation `810615d`. **Pushed 2026-10-24**; CI run 40031270158 on `810615d` is green on all four jobs on the first run: checks, secrets-scan, dev-env (API `/ready` 200, PoC 31/31, integration 5 files / 18 tests, inspection 9/9 including "integration room holds encrypted events only", Synapse 1.163.2) and poc-e2ee.
 
 ## Current task
-Owner review of the Phase 3 exit gate (evidence below) and ADR-0004; on approval, push and confirm CI (the `dev-env` job runs the Phase 3 integration tests and inspects the server for the run's nonce). No Phase 4 work has started.
+Owner acceptance of the Phase 3 exit gate (evidence below) and ADR-0004. No Phase 4 work has started.
 
 ## Completed (Phase 3)
 Labels follow AGENTS.md §12. Unit = jsdom/Node without a network; integration = Node against the compose Synapse 1.163.1 (`pnpm test:integration`); manual = built-in browser, two origins (`localhost`, `second.localhost`) as two accounts.
@@ -27,7 +27,7 @@ Labels follow AGENTS.md §12. Unit = jsdom/Node without a network; integration =
 | Offline: message stays Pending while the server is unreachable and becomes Sent after reconnect, received once; reconnection and replayed transaction ids create no duplicates | Verified | integration (sync failing then resumed; replayed txnId → same event); manual (Synapse stopped and restarted) |
 | Soft logout rebuilds the client on the same stores (Phase 2 defect: sync could not resume after a token refresh with crypto) | Verified | integration (fake-indexeddb stores, 10 s tokens: identity intact, sync running, encrypted send after rebuild); unit |
 | Readiness waits for the first live sync; invitations dated by their membership event; offline start uses cached readiness | Verified | unit; manual (reload after setup lands on Chats; invitation list no longer crashes) |
-| Integration harness: proactive token refresh for long-lived test clients under CI's 10 s lifetime; inspector `--nonce-file`; CI dev-env passes the nonce | Tested locally at 10 s (5 files, 18 tests) | `apps/web/test/integration/helpers.ts`, `poc/matrix-e2ee/src/inspect-server.mjs`, `.github/workflows/ci.yml`; **CI run pending push** |
+| Integration harness: proactive token refresh for long-lived test clients under CI's 10 s lifetime; inspector `--nonce-file`; CI dev-env passes the nonce | Verified in CI | run 40031270158: integration `Test Files 5 passed (5); Tests 18 passed (18)`, inspection PASS=9 FAIL=0 |
 | ADR-0004, THREAT_MODEL (TM-03, TM-04, TM-13, TM-20; soft-logout defect), ADR-0003 D4 amendment, runbook §9 | Implemented | `docs/architecture/ADR-0004-direct-messaging.md` (Status: Proposed) |
 
 ## Verification
@@ -38,20 +38,20 @@ Executed 2026-10-23 on Windows 11, Node 22, pnpm 12, TypeScript 6.0.3, Docker De
 - `HOMESERVER_URL=http://localhost:8008 ACCESS_TOKEN_LIFETIME_MS=10000 pnpm test:integration` with the local Synapse at a 10 s access-token lifetime (restored to 5 m afterwards) — 5 files, **18 tests pass** (about 47 s): Phase 2 (9) and Phase 3 (messaging 8, session soft logout 1).
 - `pnpm poc` 31/31, then `pnpm poc:inspect -- --db <copy> --nonce-file apps/web/test/integration/last-run.json` — 8/8 including "integration room holds encrypted events only — 45 events, 36 m.room.encrypted, 0 m.room.message".
 - Manual (runbook §9, accounts `p3-alice` on localhost and `p3-bob` on second.localhost, throwaway): start by username with display-name check; invitation accepted; messages both ways Sending… → Sent and decrypted on the other side; details show identity and device state; in-room verification with identical emoji → Identity verified on both and the device Verified; Synapse stopped: message Pending, after restart Sent and received exactly once; Leave on B → A shows "Left the conversation." and B's list is empty; reload after setup lands on Chats; history auto-loaded after reload. Not observed in the manual window: the list's sync-error banner (the long poll had not yet failed when checked; unit and integration cover the state), the mismatch path and a third device (unit and integration cover both).
-- CI: not run on these commits (not pushed).
+- CI: run 40031270158 (`810615d`) green on all four jobs; dev-env annotations: integration 5 files / 18 tests passed, inspection 9/9, PoC 31/31, Synapse 1.163.2. https://github.com/MSabbirHossen/communication-system/actions/runs/40031270158
 
 ## Phase 3 exit gate (IMPLEMENTATION_PLAN.md)
 | Criterion | Evidence |
 |---|---|
 | Two separate accounts can exchange encrypted messages | integration + manual |
 | The recipient can decrypt messages on an authorized device | integration (first device) + manual |
-| Server-side inspection confirms ordinary message content remains encrypted | `fetchRoomEvent` ciphertext (integration) + inspector with the integration nonce (local; CI on push) |
+| Server-side inspection confirms ordinary message content remains encrypted | `fetchRoomEvent` ciphertext (integration) + inspector with the integration nonce (local and CI run 40031270158) |
 | Reconnection and synchronization do not create unintended duplicates | integration (offline catch-up, replayed txnId, pagination) + manual offline send |
 | Pagination and error states work | integration (paging) + unit/screen (loading, empty, offline, sync error, failed send, not found) + manual |
 | Unverified-device and undecryptable-message cases are tested | integration (unverified second device; late device undecryptable) + unit (wording per code) |
 | No plaintext fallback is possible | unit (refusal, disabled composer) + integration (unencrypted room refused before any request) + inspection |
 
-The gate is **satisfied locally**; it closes when the owner accepts the evidence and ADR-0004 and CI is green on the pushed tip.
+The gate is **satisfied locally and in CI**; it closes when the owner accepts the evidence and ADR-0004.
 
 ## Blockers and risks
 - **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5).
@@ -82,7 +82,7 @@ The gate is **satisfied locally**; it closes when the owner accepts the evidence
 - **Soft logout rebuilds the client on the same stores** (ADR-0004 D11, amends ADR-0003 D4).
 
 ## Next approved action
-Owner reviews the Phase 3 evidence and ADR-0004; on approval, push `main`, confirm the four CI jobs are green (dev-env now runs the Phase 3 integration tests and the nonce inspection), then close the gate here. Phase 4 (complete web experience) starts only in plan mode after that.
+Owner reviews the Phase 3 evidence and ADR-0004 and accepts or reopens the gate. Phase 4 (complete web experience) starts only in plan mode after acceptance.
 
 ## Last updated
-2026-10-23
+2026-10-24
