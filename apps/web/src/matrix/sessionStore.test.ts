@@ -72,7 +72,7 @@ describe("sessionStore", () => {
 
   it("names every per-device database for a wipe", () => {
     const names = deviceDatabaseNames("DEV1");
-    expect(names).toContain("cs-sync-DEV1");
+    expect(names).toContain("matrix-js-sdk:cs-sync-DEV1");
     expect(names.some((n) => n.startsWith("cs-crypto-DEV1"))).toBe(true);
   });
 });

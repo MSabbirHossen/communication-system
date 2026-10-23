@@ -115,8 +115,9 @@ export async function clearSession(indexedDBFactory?: IDBFactory): Promise<void>
 /** Names of the IndexedDB databases this client creates for a device, for a full wipe on hard logout. */
 export function deviceDatabaseNames(deviceId: string): string[] {
   return [
-    `cs-sync-${deviceId}`,
+    `matrix-js-sdk:cs-sync-${deviceId}`, // the SDK prefixes IndexedDBStore names
     `cs-crypto-${deviceId}`,
     `cs-crypto-${deviceId}::matrix-sdk-crypto`,
+    `cs-crypto-${deviceId}::matrix-sdk-crypto-meta`,
   ];
 }

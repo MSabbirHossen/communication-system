@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => {
   const stopClient = vi.fn();
   const clearStores = vi.fn(async () => {});
   const listeners = new Map<string, (s: string) => void>();
-  const createClient = vi.fn((_opts: Record<string, unknown>) => ({
+  const createClient = vi.fn((opts: Record<string, unknown>) => ({
+    getDeviceId: () => opts.deviceId,
     initRustCrypto,
     startClient,
     stopClient,
@@ -125,6 +126,8 @@ describe("createMatrixClient", () => {
     await syncing;
     await stopAndClearClient(client);
     expect(mocks.stopClient).toHaveBeenCalled();
-    expect(mocks.clearStores).toHaveBeenCalled();
+    // Regression: without the prefix the SDK would delete "matrix-js-sdk::matrix-sdk-crypto"
+    // and leave this device's crypto store (its keys) behind.
+    expect(mocks.clearStores).toHaveBeenCalledWith({ cryptoDatabasePrefix: "cs-crypto-DEV1" });
   });
 });

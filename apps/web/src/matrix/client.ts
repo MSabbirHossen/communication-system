@@ -12,6 +12,11 @@ export type { CryptoCallbacks };
 const setSdkLogLevel = (level: string): void =>
   (sdkLogger as unknown as { setLevel(l: string): void }).setLevel(level);
 
+/** IndexedDB prefix of the Rust crypto store for a device (namespaced per device). */
+export function cryptoDatabasePrefix(deviceId: string): string {
+  return `cs-crypto-${deviceId}`;
+}
+
 export interface TokenUpdate {
   accessToken: string;
   refreshToken?: string;
@@ -69,7 +74,7 @@ export async function createMatrixClient(
   await store.startup();
 
   if (idb) {
-    await client.initRustCrypto({ cryptoDatabasePrefix: `cs-crypto-${session.deviceId}` });
+    await client.initRustCrypto({ cryptoDatabasePrefix: cryptoDatabasePrefix(session.deviceId) });
   } else {
     await client.initRustCrypto({ useIndexedDB: false });
   }
@@ -116,7 +121,13 @@ function waitForFirstSync(client: sdk.MatrixClient, timeoutMs: number): Promise<
 /** Stop syncing and wipe the SDK's sync and crypto stores for this device (hard logout only). */
 export async function stopAndClearClient(client: sdk.MatrixClient): Promise<void> {
   client.stopClient();
-  await client.clearStores();
+  // The SDK deletes only the Rust crypto store whose prefix it is told about (its default is
+  // "matrix-js-sdk"); ours is namespaced per device, so the prefix must be passed or the
+  // device's keys would stay on disk after a hard logout.
+  const deviceId = client.getDeviceId();
+  await client.clearStores(
+    deviceId ? { cryptoDatabasePrefix: cryptoDatabasePrefix(deviceId) } : {},
+  );
 }
 
 /** Replace the access token the client sends (after a native /refresh). */
