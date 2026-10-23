@@ -5,7 +5,8 @@
   "description": "Capacitor shell for Android and iOS around @cs/web (ADR-0001 C2, provisional). Platforms are added in Phase 5.",
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @cs/web build && node scripts/sync.mjs",
+    "build": "node scripts/sync.mjs",
+    "build:web": "pnpm --filter @cs/web build && node scripts/sync.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "cap": "cap"
   },
@@ -13,6 +14,7 @@
     "@capacitor/core": "8.5.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "8.5.3"
+    "@capacitor/cli": "8.5.3",
+    "@cs/web": "workspace:*"
   }
 }

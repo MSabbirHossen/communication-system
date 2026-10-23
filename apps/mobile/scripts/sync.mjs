@@ -1,4 +1,6 @@
 // Copies the web build into native platforms when they exist; otherwise explains why not.
+// Run by `pnpm -r build` after @cs/web (declared as a workspace devDependency so pnpm orders
+// the builds); `pnpm --filter @cs/mobile build:web` builds the web app first when run alone.
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -8,7 +10,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const webDist = join(root, "..", "web", "dist", "index.html");
 if (!existsSync(webDist)) {
   console.error(
-    "mobile: web build not found at apps/web/dist; run `pnpm --filter @cs/web build` first",
+    "mobile: web build not found at apps/web/dist; run `pnpm --filter @cs/mobile build:web`",
   );
   process.exit(1);
 }
