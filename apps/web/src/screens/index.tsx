@@ -77,15 +77,20 @@ export function SettingsScreen() {
           <p className="type-body">
             {t("settings.signedInAs")} <code>{session.userId}</code>
           </p>
-          <button
-            type="button"
-            className="button"
-            onClick={() => {
-              void controller.signOut();
-            }}
-          >
-            {t("settings.signOut")}
-          </button>
+          <div className="actions actions--start">
+            <Link to="/settings/devices" className="button">
+              {t("settings.devices")}
+            </Link>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                void controller.signOut();
+              }}
+            >
+              {t("settings.signOut")}
+            </button>
+          </div>
         </div>
       )}
       <fieldset className="field">

@@ -125,6 +125,45 @@ const en = {
   "setup.done.unverified":
     "This device is signed in but not yet verified. Verify it from one of your other devices (Settings → Devices) to use it for encrypted messages with full trust.",
 
+  // Dialogs
+  "dialog.confirm": "Confirm",
+  "dialog.cancel": "Cancel",
+
+  // Devices and security (UI brief §6.8)
+  "settings.devices": "Devices & security",
+  "devices.title": "Devices & security",
+  "devices.intro":
+    "Every sign-in is a device with its own encryption keys. Verify your other devices so they trust each other, and sign out any you no longer use.",
+  "devices.identity.title": "This device",
+  "devices.identity.user": "Account",
+  "devices.identity.device": "Device ID",
+  "devices.identity.fingerprint": "Key fingerprint",
+  "devices.identity.help":
+    "Compare the fingerprint with what another device shows to confirm they belong to the same account.",
+  "devices.list": "Your devices",
+  "devices.empty": "No devices found.",
+  "devices.current": "This device",
+  "devices.unnamed": "Unnamed device",
+  "devices.lastSeen": "Last active",
+  "devices.lastSeen.unknown": "unknown",
+  "devices.badge.verified": "Verified",
+  "devices.badge.unverified": "Not verified",
+  "devices.badge.unknown": "Unknown",
+  "devices.badge.noKeys": "No encryption keys",
+  "devices.verify": "Verify",
+  "devices.rename": "Rename",
+  "devices.rename.label": "Device name",
+  "devices.rename.save": "Save",
+  "devices.revoke": "Sign out device",
+  "devices.revoke.title": "Sign out this device?",
+  "devices.revoke.body":
+    "The device will lose access immediately and must sign in again. Messages it already downloaded stay on that device; signing it out does not erase them.",
+  "devices.revoke.confirm": "Sign out device",
+  "devices.reauth.title": "Confirm it's you",
+  "devices.reauth.body":
+    "Enter your password to sign out a device. It is sent to the server once and not kept.",
+  "devices.refresh": "Refresh list",
+
   // Privacy notes (placeholder for the Phase 8 disclosure)
   "privacy.title": "Privacy notes",
   "privacy.e2ee":

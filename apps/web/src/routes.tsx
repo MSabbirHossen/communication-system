@@ -9,6 +9,7 @@ import {
   WelcomeScreen,
 } from "./screens";
 import { LoginScreen, PrivacyScreen, RegisterScreen } from "./screens/auth";
+import { DevicesSecurityScreen } from "./screens/DevicesSecurity";
 import { SecureDeviceSetupScreen } from "./screens/SecureDeviceSetup";
 import { RedirectIfSignedIn, RequireClient, RequireSession } from "./session/SessionProvider";
 
@@ -56,6 +57,7 @@ export const routes: RouteObject[] = [
           { path: "/chats", element: <ChatsScreen /> },
           { path: "/people", element: <PeopleScreen /> },
           { path: "/settings", element: <SettingsScreen /> },
+          { path: "/settings/devices", element: <DevicesSecurityScreen /> },
           { path: "*", element: <NotFoundScreen /> },
         ],
       },

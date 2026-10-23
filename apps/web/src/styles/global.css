@@ -321,3 +321,95 @@ code {
   word-break: break-all;
   user-select: all;
 }
+
+/* Devices & security, dialogs */
+.card {
+  border: var(--cs-size-border-width) solid var(--cs-color-border);
+  border-radius: var(--cs-radius-md);
+  padding: var(--cs-space-3) var(--cs-space-4);
+  margin-bottom: var(--cs-space-4);
+  background: var(--cs-color-bg);
+}
+.device-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--cs-space-3);
+}
+.device {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cs-space-3);
+  justify-content: space-between;
+  border: var(--cs-size-border-width) solid var(--cs-color-border);
+  border-radius: var(--cs-radius-md);
+  padding: var(--cs-space-3) var(--cs-space-4);
+}
+.device--current {
+  border-color: var(--cs-color-primary);
+}
+.device__main {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.device__name {
+  margin: 0 0 var(--cs-space-1);
+}
+.device__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--cs-space-2);
+}
+.device__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cs-space-2);
+}
+.device__rename {
+  display: flex;
+  gap: var(--cs-space-2);
+  flex-wrap: wrap;
+}
+.badge {
+  display: inline-block;
+  font-size: var(--cs-type-meta-size);
+  padding: 2px var(--cs-space-2);
+  border-radius: var(--cs-radius-pill);
+  border: var(--cs-size-border-width) solid var(--cs-color-border);
+  color: var(--cs-color-text-muted);
+}
+.badge--ok {
+  color: var(--cs-color-success);
+  border-color: var(--cs-color-success);
+}
+.badge--warn {
+  color: var(--cs-color-warning);
+  border-color: var(--cs-color-warning);
+}
+.button--danger {
+  color: var(--cs-color-danger);
+  border-color: var(--cs-color-danger);
+}
+.actions--start {
+  justify-content: flex-start;
+}
+.modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: grid;
+  place-items: center;
+  padding: var(--cs-space-4);
+  z-index: 20;
+}
+.modal {
+  background: var(--cs-color-surface);
+  color: var(--cs-color-text);
+  border-radius: var(--cs-radius-lg);
+  box-shadow: var(--cs-elevation-2);
+  padding: var(--cs-space-5);
+  max-width: 480px;
+  width: 100%;
+}
