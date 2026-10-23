@@ -4,7 +4,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { EventType, MsgType, type MatrixClient, type Room } from "matrix-js-sdk";
-import { restartSync } from "../../src/matrix/client";
 import { ensureCryptoReady } from "../../src/matrix/cryptoSetup";
 import { getRecipientSecurity } from "../../src/matrix/recipientSecurity";
 import { SecretStorageKeyHolder } from "../../src/matrix/recoveryKey";

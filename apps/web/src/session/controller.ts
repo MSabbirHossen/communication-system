@@ -61,7 +61,6 @@ export interface SessionDeps {
     cryptoCallbacks: CryptoCallbacks;
   }): Promise<MatrixClient>;
   startSync(client: MatrixClient): Promise<void>;
-  restartSync(client: MatrixClient): Promise<void>;
   applyAccessToken(client: MatrixClient, accessToken: string): void;
   onSessionLoggedOut(client: MatrixClient, cb: (info: { softLogout: boolean }) => void): () => void;
   stopAndClearClient(client: MatrixClient): Promise<void>;
@@ -307,13 +306,38 @@ export class SessionController {
     );
   }
 
+  /**
+   * Replace the SDK client after a soft logout. The SDK's sync loop stops itself on
+   * M_UNKNOWN_TOKEN and cannot be restarted on the same client, and stopping the client
+   * closes the Rust crypto machine; so the old client is stopped (releasing its stores)
+   * and a new one opens the same persisted stores with the refreshed token (ADR-0003 D4).
+   */
+  private async rebuildClient(): Promise<void> {
+    const { client: old, session } = this.state;
+    if (!session) return;
+    this.unsubscribeLoggedOut?.();
+    this.unsubscribeLoggedOut = null;
+    old?.stopClient();
+    const client = await this.deps.createMatrixClient({
+      session,
+      onTokenRefresh: (t) => void this.persistTokens(t),
+      cryptoCallbacks: this.deps.keyHolder.callbacks(),
+    });
+    this.unsubscribeLoggedOut = this.deps.onSessionLoggedOut(client, (info) => {
+      void this.handleLoggedOut(info);
+    });
+    this.set({ client });
+    await this.deps.startSync(client);
+    this.deps.logger.info("client rebuilt after soft logout", { deviceId: session.deviceId });
+  }
+
   /** The SDK reports the token is no longer accepted. */
   private async handleLoggedOut(info: { softLogout: boolean }): Promise<void> {
     const { client, session } = this.state;
     if (!client || !session) return;
     if (info.softLogout && session.refreshToken) {
       this.deps.logger.info("session soft-logged out; refreshing token");
-      if (await this.refreshNow()) await this.deps.restartSync(client);
+      if (await this.refreshNow()) await this.rebuildClient();
       return; // otherwise doRefresh already dropped the session or scheduled a retry
     }
     this.deps.logger.warn("session logged out by the server", { soft: info.softLogout });
@@ -376,7 +400,7 @@ export class SessionController {
       await this.deps.startSync(client);
     } catch (err) {
       if (toAuthError(err).code === "session_expired" && session.refreshToken) {
-        if (await this.refreshNow()) await this.deps.restartSync(client);
+        if (await this.refreshNow()) await this.rebuildClient();
         if (this.state.status !== "starting") return; // dropped during refresh
       } else {
         throw err;

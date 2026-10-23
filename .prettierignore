@@ -5,3 +5,5 @@ pnpm-lock.yaml
 poc/matrix-e2ee/evidence
 infrastructure/synapse/data
 *.md
+# written by local PoC / integration runs
+**/last-run.json

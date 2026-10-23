@@ -4,8 +4,8 @@
 import { randomBytes } from "node:crypto";
 import { describe } from "vitest";
 import { createClient, MatrixError, type MatrixClient } from "matrix-js-sdk";
-import { login, register } from "../../src/matrix/auth";
-import { createMatrixClient, startSync } from "../../src/matrix/client";
+import { login, refreshSession, register } from "../../src/matrix/auth";
+import { applyAccessToken, createMatrixClient, startSync } from "../../src/matrix/client";
 import type { SecretStorageKeyHolder } from "../../src/matrix/recoveryKey";
 import type { StoredSession } from "../../src/matrix/sessionStore";
 
@@ -41,6 +41,13 @@ export function loginAgain(acct: Account, deviceName: string): Promise<StoredSes
 const clients = new Set<MatrixClient>();
 
 /** A syncing client with the Rust crypto backend (memory stores), tracked for cleanup. */
+const refreshTimers = new Set<ReturnType<typeof setInterval>>();
+
+/**
+ * A syncing client with the Rust crypto backend (memory stores), tracked for cleanup. Under
+ * a short access-token lifetime (CI) the token is refreshed proactively, as the app does,
+ * so clients that outlive the lifetime keep working.
+ */
 export async function deviceClient(
   session: StoredSession,
   holder?: SecretStorageKeyHolder,
@@ -52,6 +59,21 @@ export async function deviceClient(
     sdkLogLevel: "silent",
   });
   clients.add(client);
+  if (ACCESS_TOKEN_LIFETIME_MS && session.refreshToken) {
+    let current = session;
+    const timer = setInterval(
+      () => {
+        void refreshSession(current)
+          .then((next) => {
+            current = next;
+            applyAccessToken(client, next.accessToken);
+          })
+          .catch(() => undefined); // a revoked device simply stops refreshing
+      },
+      Math.max(1_000, ACCESS_TOKEN_LIFETIME_MS / 2),
+    );
+    refreshTimers.add(timer);
+  }
   await startSync(client, { pollTimeout: 10_000, firstSyncTimeoutMs: 30_000 });
   return client;
 }
@@ -68,6 +90,8 @@ export function plainClient(session: Pick<StoredSession, "accessToken" | "userId
 }
 
 export async function stopClients(): Promise<void> {
+  for (const t of refreshTimers) clearInterval(t);
+  refreshTimers.clear();
   for (const c of clients) {
     c.stopClient();
     await c.clearStores().catch(() => undefined);

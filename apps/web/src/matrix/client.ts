@@ -151,12 +151,3 @@ export function onSessionLoggedOut(
   client.on(sdk.HttpApiEvent.SessionLoggedOut, handler);
   return () => client.removeListener(sdk.HttpApiEvent.SessionLoggedOut, handler);
 }
-
-/** Stop and start syncing again (after replacing an expired token). */
-export async function restartSync(
-  client: sdk.MatrixClient,
-  o: StartSyncOptions = {},
-): Promise<void> {
-  client.stopClient();
-  await startSync(client, o);
-}

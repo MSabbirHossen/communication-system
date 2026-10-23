@@ -93,7 +93,7 @@ describe("token refresh and session expiry", () => {
     expect(c.getSnapshot().session?.accessToken).toBe("syt_second");
   });
 
-  it("on a soft logout with a refresh token, refreshes and restarts sync", async () => {
+  it("on a soft logout with a refresh token, refreshes and rebuilds the client on the same stores", async () => {
     let fire: ((i: { softLogout: boolean }) => void) | undefined;
     const deps = fakeDeps({
       loadSession: vi.fn(async () => withExpiry(300_000)),
@@ -105,9 +105,20 @@ describe("token refresh and session expiry", () => {
     });
     const c = new SessionController(deps);
     await c.boot();
+    const first = c.getSnapshot().client!;
     fire!({ softLogout: true });
-    await vi.waitFor(() => expect(deps.restartSync).toHaveBeenCalled());
+    await vi.waitFor(() => expect(deps.createMatrixClient).toHaveBeenCalledTimes(2));
     expect(deps.refreshSession).toHaveBeenCalledTimes(1);
+    // The old client is stopped (never cleared) and the new one syncs with the new token.
+    expect(
+      (first as unknown as { stopClient: ReturnType<typeof vi.fn> }).stopClient,
+    ).toHaveBeenCalled();
+    expect(deps.stopAndClearClient).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(deps.startSync).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(deps.createMatrixClient).mock.calls[1]![0].session.accessToken).toBe(
+      "syt_refreshed",
+    );
+    expect(c.getSnapshot().client).not.toBe(first);
     expect(c.getSnapshot().status).toBe("ready");
   });
 

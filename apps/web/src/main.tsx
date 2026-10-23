@@ -10,7 +10,6 @@ import {
   applyAccessToken,
   createMatrixClient,
   onSessionLoggedOut,
-  restartSync,
   startSync,
   stopAndClearClient,
 } from "./matrix/client";
@@ -45,7 +44,6 @@ try {
     register,
     refreshSession,
     logoutRemote,
-    restartSync,
     applyAccessToken,
     onSessionLoggedOut,
     createMatrixClient: (o) =>
