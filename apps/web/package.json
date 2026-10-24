@@ -8,9 +8,10 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.integration.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.integration.json && tsc -p tsconfig.e2e.json",
     "test": "vitest run",
-    "i18n:extract": "node scripts/i18n-extract.mjs"
+    "i18n:extract": "node scripts/i18n-extract.mjs",
+    "test:e2e": "pnpm build && playwright test"
   },
   "dependencies": {
     "@cs/design-tokens": "workspace:*",
@@ -24,6 +25,8 @@
     "react-router": "8.5.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.8",

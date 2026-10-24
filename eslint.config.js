@@ -12,6 +12,8 @@ export default tseslint.config(
       "**/dist/**",
       "**/build/**",
       "**/coverage/**",
+      "**/e2e-results/**",
+      "**/e2e-report/**",
       "infrastructure/synapse/data/**",
       "apps/mobile/android/**",
       "apps/mobile/ios/**",
