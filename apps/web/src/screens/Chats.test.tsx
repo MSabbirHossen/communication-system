@@ -22,6 +22,7 @@ function chatsClient(rooms: Room[], direct: Record<string, string[]> = {}) {
   const client = {
     getUserId: () => ME,
     getDeviceId: () => "DEVTEST",
+    getDomain: () => "localhost",
     on: (e: string, cb: (...a: unknown[]) => void) => em.on(e, cb),
     removeListener: (e: string, cb: (...a: unknown[]) => void) => em.removeListener(e, cb),
     getVisibleRooms: () => state.rooms,
@@ -186,6 +187,13 @@ describe("conversation list", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/cannot reach the server/i);
     await userEvent.setup().click(screen.getByRole("button", { name: "Retry now" }));
     expect(retryImmediately).toHaveBeenCalled();
+  });
+
+  it("below the desktop breakpoint, New conversation replaces the list", async () => {
+    mockViewport(false);
+    await renderChats("/chats/new", []);
+    expect(await screen.findByRole("heading", { name: "New conversation" })).toBeInTheDocument();
+    expect(screen.queryByText("No conversations yet")).toBeNull();
   });
 
   it("below the desktop breakpoint, a selected conversation replaces the list", async () => {

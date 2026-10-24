@@ -46,7 +46,7 @@ function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   const title = mode === "login" ? t("auth.login.title") : t("auth.register.title");
   return (
-    <section className="screen screen--centered" aria-labelledby="auth-title">
+    <main className="screen screen--centered" aria-labelledby="auth-title">
       <h1 id="auth-title" className="type-title">
         {title}
       </h1>
@@ -114,7 +114,7 @@ function AuthForm({ mode }: { mode: "login" | "register" }) {
       <p className="type-meta text-muted">
         <Link to="/privacy">{t("welcome.privacy")}</Link>
       </p>
-    </section>
+    </main>
   );
 }
 
@@ -124,7 +124,7 @@ export const RegisterScreen = () => <AuthForm mode="register" />;
 /** Static privacy notes placeholder until the real disclosure is written (Phase 8). */
 export function PrivacyScreen() {
   return (
-    <section className="screen screen--centered" aria-labelledby="privacy-title">
+    <main className="screen screen--centered" aria-labelledby="privacy-title">
       <h1 id="privacy-title" className="type-title">
         {t("privacy.title")}
       </h1>
@@ -135,6 +135,6 @@ export function PrivacyScreen() {
       <Link to="/" className="link">
         {t("nav.back")}
       </Link>
-    </section>
+    </main>
   );
 }

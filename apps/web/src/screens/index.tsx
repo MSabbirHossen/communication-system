@@ -3,7 +3,7 @@ import { t } from "../i18n";
 
 export function WelcomeScreen() {
   return (
-    <section className="screen screen--centered" aria-labelledby="welcome-title">
+    <main className="screen screen--centered" aria-labelledby="welcome-title">
       <p className="type-meta text-muted">{t("app.name")}</p>
       <h1 id="welcome-title" className="type-title">
         {t("welcome.title")}
@@ -31,14 +31,14 @@ export function WelcomeScreen() {
           {t("welcome.terms")}
         </Link>
       </p>
-    </section>
+    </main>
   );
 }
 
 /** Placeholder until the closed-beta terms exist (Phase 8). */
 export function TermsScreen() {
   return (
-    <section className="screen screen--centered" aria-labelledby="terms-title">
+    <main className="screen screen--centered" aria-labelledby="terms-title">
       <h1 id="terms-title" className="type-title">
         {t("terms.title")}
       </h1>
@@ -46,7 +46,7 @@ export function TermsScreen() {
       <Link to="/" className="link">
         {t("nav.back")}
       </Link>
-    </section>
+    </main>
   );
 }
 

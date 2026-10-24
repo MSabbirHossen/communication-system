@@ -170,7 +170,7 @@ export function SecureDeviceSetupScreen() {
   }, [status, setup.phase, navigate]);
 
   return (
-    <section className="screen screen--centered" aria-labelledby="setup-title" aria-live="polite">
+    <main className="screen screen--centered" aria-labelledby="setup-title" aria-live="polite">
       <h1 id="setup-title" className="type-title">
         {t("setup.title")}
       </h1>
@@ -225,6 +225,6 @@ export function SecureDeviceSetupScreen() {
           </div>
         </div>
       )}
-    </section>
+    </main>
   );
 }

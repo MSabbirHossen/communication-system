@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Outlet, useNavigate, useOutletContext, useParams } from "react-router";
+import { Link, Outlet, useMatch, useNavigate, useOutletContext, useParams } from "react-router";
 import { Skeleton } from "../components/Skeleton";
 import { dateTimeFormat, t } from "../i18n";
 import { toAuthError, type AuthError } from "../matrix/errors";
@@ -221,8 +221,9 @@ function ConversationList({ activeRoomId }: { activeRoomId: string | undefined }
 export function ChatsScreen() {
   const { desktop } = useOutletContext<ShellContext>();
   const { roomId } = useParams();
-  const showDetail = desktop || roomId !== undefined;
-  const showList = desktop || roomId === undefined;
+  const startingNew = useMatch("/chats/new") !== null;
+  const showDetail = desktop || roomId !== undefined || startingNew;
+  const showList = desktop || (roomId === undefined && !startingNew);
   return (
     <div className={`two-pane${desktop ? " two-pane--split" : ""}`} data-panes={desktop ? 2 : 1}>
       {showList && <ConversationList activeRoomId={roomId} />}
