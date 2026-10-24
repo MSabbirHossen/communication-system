@@ -8,6 +8,7 @@ import {
   type MatrixClient,
   type Room,
 } from "matrix-js-sdk";
+import { isBlocked } from "./blocking";
 
 export type ConversationMembership = "join" | "invite";
 
@@ -99,6 +100,9 @@ export function listDirectConversations(client: MatrixClient): DirectConversatio
     if (!isDirectRoom(room, me, map)) continue;
     const otherUserId = otherUserOf(room, me, map);
     if (!otherUserId) continue;
+    // The homeserver drops an ignored user's invitations from sync; one that arrived before
+    // the block stays in the store, so hide it here as well.
+    if (membership === "invite" && isBlocked(client, otherUserId)) continue;
     out.push({
       roomId: room.roomId,
       otherUserId,

@@ -4,7 +4,7 @@ import { NotFoundScreen, RouteErrorScreen, WelcomeScreen } from "./screens";
 import { SettingsScreen } from "./screens/Settings";
 import { ProfileScreen } from "./screens/Profile";
 import { PrivacySettingsScreen } from "./screens/PrivacySettings";
-import { PendingScreen } from "./screens/pending";
+import { BlockedUsersScreen } from "./screens/BlockedUsers";
 import { LoginScreen, PrivacyScreen, RegisterScreen } from "./screens/auth";
 import { ChatsScreen, NoConversationSelected } from "./screens/Chats";
 import { ConversationScreen } from "./screens/Conversation";
@@ -71,7 +71,7 @@ export const routes: RouteObject[] = [
           { path: "/settings", element: <SettingsScreen /> },
           { path: "/settings/profile", element: <ProfileScreen /> },
           { path: "/settings/privacy", element: <PrivacySettingsScreen /> },
-          { path: "/settings/blocked", element: <PendingScreen /> },
+          { path: "/settings/blocked", element: <BlockedUsersScreen /> },
           { path: "/settings/devices", element: <DevicesSecurityScreen /> },
           { path: "/settings/devices/verify/:deviceId", element: <VerifyDeviceScreen /> },
           { path: "*", element: <NotFoundScreen /> },

@@ -177,6 +177,26 @@ const en = {
   "presence.offline": "Offline",
   "presence.lastActive": "Last active {ago} ago",
   "presence.justNow": "just now",
+  "blocked.title": "Blocked users",
+  "blocked.intro":
+    "Messages and invitations from blocked people are not delivered to any of your devices. They are not told. Blocking hides; it does not delete anything you already received, and messages sent while blocked may appear if you unblock.",
+  "blocked.list": "Blocked users",
+  "blocked.empty.title": "Nobody is blocked",
+  "blocked.empty.body": "You can block someone from their conversation details.",
+  "blocked.unblock": "Unblock",
+  "blocked.unblock.title": "Unblock this person?",
+  "blocked.unblock.body":
+    "Messages and invitations from them will be delivered again, and messages they sent while blocked may appear.",
+  "details.blocking": "Blocking",
+  "details.blocking.help":
+    "Blocking stops their messages and invitations from reaching any of your devices. They are not told, and nothing already received is deleted.",
+  "details.blocked.state":
+    "You blocked this person. Their messages and invitations are not delivered to you.",
+  "details.block": "Block this person",
+  "details.block.title": "Block this person?",
+  "details.block.body":
+    "Their messages and invitations will no longer be delivered to you, on any device. This conversation stays in your list but goes quiet. They are not told. You can unblock them from Settings.",
+  "chat.blocked": "You blocked this person. Their messages are not delivered to you.",
   "settings.signedInAs": "Signed in as",
   "offline.banner": "You are offline. Messages will send when you reconnect.",
   "error.title": "Something went wrong",

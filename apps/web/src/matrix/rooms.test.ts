@@ -173,6 +173,23 @@ describe("direct conversation model", () => {
     expect(byId["!e"]!.preview).toEqual({ kind: "encrypted" });
   });
 
+  it("hides an invitation from a blocked user", () => {
+    const invite = fakeRoom({
+      roomId: "!inv",
+      myMembership: "invite",
+      dmInviter: BOB,
+      members: [{ userId: ME, membership: "invite" }, { userId: BOB }],
+    });
+    const { client } = fakeRoomClient([invite]);
+    (client as unknown as { getAccountData: (t: string) => unknown }).getAccountData = (
+      t: string,
+    ) =>
+      t === "m.ignored_user_list"
+        ? { getContent: () => ({ ignored_users: { [BOB]: {} } }) }
+        : undefined;
+    expect(listDirectConversations(client)).toEqual([]);
+  });
+
   it("dates an invitation by its membership event when the room has no timeline yet", () => {
     const invite = fakeRoom({
       roomId: "!inv",

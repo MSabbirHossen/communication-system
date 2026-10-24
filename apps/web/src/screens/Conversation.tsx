@@ -17,6 +17,7 @@ import {
 } from "../matrix/timeline";
 import { useSession } from "../session/SessionProvider";
 import { useUserSettings } from "../session/useSettings";
+import { useBlockedUsers } from "../session/useBlocking";
 import { useRecipientSecurity } from "../session/useRecipientSecurity";
 import { useConversations, useRoom, useRoomTimeline } from "../session/useRooms";
 import { authErrorMessage } from "./auth";
@@ -174,6 +175,7 @@ export function ConversationScreen() {
   const items = useRoomTimeline(room);
   const security = useRecipientSecurity(conversation?.otherUserId);
   const { settings } = useUserSettings();
+  const { blocked } = useBlockedUsers();
   const [draft, setDraft] = useState(() => drafts.get(roomId) ?? "");
   const [error, setError] = useState<AuthError | "encryption_required" | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -338,6 +340,14 @@ export function ConversationScreen() {
         <InvitePrompt conversation={conversation} />
       ) : (
         <>
+          {blocked.includes(conversation.otherUserId) && (
+            <p className="banner banner--warning" role="status">
+              {t("chat.blocked")}{" "}
+              <Link to={`/chats/${encodeURIComponent(roomId)}/details`} className="link">
+                {t("chat.details")}
+              </Link>
+            </p>
+          )}
           {security?.identity === "changed" && (
             <p className="banner banner--danger" role="alert">
               {t("chat.identityChanged")}{" "}

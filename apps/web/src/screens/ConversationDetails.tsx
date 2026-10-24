@@ -7,6 +7,7 @@ import type { RecipientSecurity } from "../matrix/recipientSecurity";
 import { useSession } from "../session/SessionProvider";
 import { useRecipientSecurity } from "../session/useRecipientSecurity";
 import { usePresence } from "../session/useSettings";
+import { useBlockedUsers } from "../session/useBlocking";
 import { useConversations } from "../session/useRooms";
 import { authErrorMessage } from "./auth";
 
@@ -46,7 +47,9 @@ export function ConversationDetailsScreen() {
   const conversation = useConversations().find((c) => c.roomId === roomId);
   const security = useRecipientSecurity(conversation?.otherUserId);
   const presence = usePresence(conversation?.otherUserId);
+  const { blocked, block, unblock } = useBlockedUsers();
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmBlock, setConfirmBlock] = useState<"block" | "unblock" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
 
@@ -63,6 +66,23 @@ export function ConversationDetailsScreen() {
 
   const back = `/chats/${encodeURIComponent(roomId)}`;
   const badge = identityBadge(security);
+
+  const isBlockedUser = conversation ? blocked.includes(conversation.otherUserId) : false;
+
+  async function toggleBlock(action: "block" | "unblock") {
+    if (!conversation) return;
+    setConfirmBlock(null);
+    setBusy(true);
+    setError(null);
+    try {
+      if (action === "block") await block(conversation.otherUserId);
+      else await unblock(conversation.otherUserId);
+    } catch (e) {
+      setError(toAuthError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function leave() {
     if (!client) return;
@@ -183,6 +203,36 @@ export function ConversationDetailsScreen() {
         <p className="type-meta text-muted">{t("details.devices.help")}</p>
       </section>
 
+      <section className="card" aria-labelledby="details-blocking">
+        <h2 id="details-blocking" className="type-body field__label">
+          {t("details.blocking")}
+        </h2>
+        <p className="type-meta text-muted">
+          {isBlockedUser ? t("details.blocked.state") : t("details.blocking.help")}
+        </p>
+        <div className="actions actions--start">
+          {isBlockedUser ? (
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => setConfirmBlock("unblock")}
+            >
+              {t("blocked.unblock")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="button button--danger"
+              disabled={busy}
+              onClick={() => setConfirmBlock("block")}
+            >
+              {t("details.block")}
+            </button>
+          )}
+        </div>
+      </section>
+
       <div className="actions actions--start">
         <button
           type="button"
@@ -193,6 +243,25 @@ export function ConversationDetailsScreen() {
           {t("details.leave")}
         </button>
       </div>
+      {confirmBlock === "block" && (
+        <ConfirmDialog
+          title={t("details.block.title")}
+          body={t("details.block.body")}
+          confirmLabel={t("details.block")}
+          destructive
+          onConfirm={() => void toggleBlock("block")}
+          onCancel={() => setConfirmBlock(null)}
+        />
+      )}
+      {confirmBlock === "unblock" && (
+        <ConfirmDialog
+          title={t("blocked.unblock.title")}
+          body={t("blocked.unblock.body")}
+          confirmLabel={t("blocked.unblock")}
+          onConfirm={() => void toggleBlock("unblock")}
+          onCancel={() => setConfirmBlock(null)}
+        />
+      )}
 
       {confirmLeave && (
         <ConfirmDialog

@@ -104,3 +104,33 @@ describe("verifying the other person", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/something went wrong/i);
   });
 });
+
+describe("blocking from conversation details", () => {
+  it("blocks after a confirmation that explains the effect, then offers unblock", async () => {
+    mockViewport(true);
+    const fake = detailsClient(fakeRecipientCrypto({}));
+    const ignored: Record<string, unknown> = {};
+    const setIgnoredUsers = vi.fn(async (ids: string[]) => {
+      for (const k of Object.keys(ignored)) delete ignored[k];
+      for (const id of ids) ignored[id] = {};
+      return {};
+    });
+    const client = fake.client as unknown as Record<string, unknown>;
+    const original = client.getAccountData as (t: string) => unknown;
+    client.getAccountData = (t: string) =>
+      t === "m.ignored_user_list"
+        ? { getContent: () => ({ ignored_users: ignored }) }
+        : original(t);
+    client.setIgnoredUsers = setIgnoredUsers;
+    const c = await controllerIn("ready", { createMatrixClient: vi.fn(async () => fake.client) });
+    renderApp("/chats/!r:localhost/details", c);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Block this person" }));
+    const dialog = await screen.findByRole("dialog", { name: "Block this person?" });
+    expect(dialog).toHaveTextContent(/they are not told/i);
+    await user.click(within(dialog).getByRole("button", { name: "Block this person" }));
+    await waitFor(() => expect(setIgnoredUsers).toHaveBeenCalledWith([BOB]));
+    expect(await screen.findByRole("button", { name: "Unblock" })).toBeInTheDocument();
+    expect(screen.getByText(/you blocked this person/i)).toBeInTheDocument();
+  });
+});
