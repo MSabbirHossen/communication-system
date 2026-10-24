@@ -1,6 +1,6 @@
 # ADR-0005 — Completing the web experience (settings, notifications, one tab, accessibility, end-to-end tests)
 
-**Status:** Proposed — for the project owner's decision at the Phase 4 exit gate  
+**Status:** **Accepted** — approved by the project owner on 2026-10-24 at the Phase 4 exit gate  
 **Date:** 2026-10-24  
 **Deciders:** Project owner (Matrix-native settings, localization scope, generic notifications and the cross-browser record decided 2026-10-24); implementation by the AI contributor  
 **Inputs:** `docs/PRD.md` FR-08 to FR-11, §10; `docs/TRD.md` §7, §12; `docs/APP_FLOW.md` §4, 5.6 to 5.9; `docs/UI_UX_BRIEF.md` §6.8 to §6.10, §8, §9; `docs/IMPLEMENTATION_PLAN.md` Phase 4; ADR-0001, ADR-0003, ADR-0004; `docs/security/THREAT_MODEL.md`.
