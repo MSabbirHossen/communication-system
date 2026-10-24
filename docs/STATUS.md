@@ -1,95 +1,80 @@
 # Project Status
 
 ## Active phase
-Phase 5 — Android and iOS (**planning only; no implementation until the owner approves the plan**)
+Phase 5 — Android and iOS (**implementation complete on local `main`; not pushed; the Mobile workflow has not run yet, so the device evidence is still pending**)
 
 ## Last completed milestone
 **Phase 4 complete — exit gate accepted by the owner on 2026-10-24; ADR-0005 Accepted.** CI run 40098979625 green on `7c605a3`. Phase 3 closed 2026-10-24 (ADR-0004 Accepted); Phase 2 closed 2026-10-23 (ADR-0003 Accepted); Phase 1 closed 2026-10-23; Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
 
 ## Current task
-Phase 5 plan for owner approval (AGENTS.md step 2), checked against the Phase 5 exit gate in IMPLEMENTATION_PLAN.md. No Phase 5 code until approved.
+Phase 5 per the approved plan (2026-10-24), implemented as five commits on local `main` on top of `bff7576`: native projects and build variants `135aab0`, secure session storage and lifecycle `c101907`, content-free push plumbing `77be671`, spike runner and the Mobile CI workflow `97d759f`, documentation `5088e51` plus this status. **Not pushed**: the push, which triggers the first Mobile workflow run (Android APKs, emulator spike, iOS simulator), follows the owner's go-ahead, as in Phase 4.
 
-## Phase 4 record
-Implemented 2026-10-24 as the eight planned commits plus one fix on local `main` on top of `fb84247`: tab lease `b06c5d7`, settings hub / profile / sign out of other devices `deb69f1`, privacy settings `7ec2fce`, blocking `94f8082`, browser notifications `5d76f2a`, accessibility / responsive / RTL polish with the catalogue export `8318ea0`, narrow-layout and landmark fixes `d559325`, Playwright end-to-end suite `04c2ec7`, documentation `6e3d80d`. Pushed 2026-10-24 on the owner's go-ahead; CI run 40097078795 had checks, secrets-scan and poc-e2ee green and the dev-env job green through API readiness, PoC 31/31 and integration 8 files / 22 tests, but the new e2e step failed 1 of 4 (the one-tab take-over step). Root cause found and fixed in `7c605a3` (see Verification): under CI's 10 s token lifetime the SDK and the controller both rotated the single-use refresh token and the device was signed out. **CI run 40098979625 on `7c605a3` is green on all four jobs**: dev-env e2e 4 passed (57 s), integration 8 files / 22 tests, inspection 9/9, PoC 31/31, Synapse 1.163.2. https://github.com/MSabbirHossen/communication-system/actions/runs/40098979625
-
-## Completed (Phase 4)
-Labels follow AGENTS.md §12. Unit = jsdom/Node without a network; integration = Node against the compose Synapse 1.163.x (`pnpm test:integration`); e2e = Playwright Chromium against the production build and the compose Synapse (`pnpm test:e2e`); manual = built-in browser (Chromium), accounts `p4-alice` on second.localhost and `p4-bob` on third.localhost (throwaway).
+## Completed (Phase 5)
+Labels follow AGENTS.md §12. Unit = jsdom/Node; integration = Node against the compose Synapse 1.163.x; browser = the spike runner in Chromium against the compose Synapse; device = CI emulator/simulator or the owner's phone.
 
 | Deliverable | Status | Evidence |
 |---|---|---|
-| One active tab per device: Web Locks lease, "Already open in another tab" with take-over, losing tab stops without clearing stores, release on sign-out (ADR-0005 D1, TM-26) | Verified | unit (first wins, second blocked, take-over, release); e2e (two pages, take-over both ways); manual (both directions) |
-| Settings hub with Profile, Privacy & notifications, Blocked users, Devices & security, Privacy notes, theme, language, sign out | Verified | unit; e2e axe; manual |
-| Profile: display name validated (1–100 chars) and saved through the Matrix profile API; identifier shown as unchangeable | Verified | unit; integration (round-trip); e2e; manual (B's list shows "Alice P4" after the change) |
-| Sign out all other devices under UIA with confirmation and password; the revoked device lands on sign-in with "Your session has expired" | Verified | integration (other devices deleted, current remains); e2e (revoked device drops to sign-in) |
-| Privacy settings in account data `org.cs.web.settings` with safe parsing and defaults; public read receipts opt-in ("Read by <name>"); presence follows the setting; other person's presence in details | Verified | unit (parsing never trusts shapes; receipt type by setting; read position); integration (public receipt only when sharing is on; presence offline when off); e2e (setting persists across reload); manual (B shares → A sees "Read by p4-bob"; B stops sharing presence → A's details show "Last active … ago" instead of Online) |
-| Blocking through `m.ignored_user_list`: Block in details with an honest confirmation, blocked banner, Blocked users list with Unblock, invitations from blocked users hidden | Verified | unit; integration (blocked user's message not delivered; delivery resumes after unblock); e2e; manual (B's message while blocked never reached A; "after unblock" did) |
-| Browser notifications: generic text only, hidden tab only, live events only, once per event, click opens the conversation; permission asked from a button and shown apart from the setting (TM-12) | Verified (logic); **Blocked (manual display)** | unit (text never contains the body; hidden/visible; off; decryption wait; dedupe); screen test through the shell with a fake Notification; e2e permission row. The built-in browser and headless Chromium report the permission as blocked, so the OS-level notification was not observed; owner to check in Chrome (runbook §10 step 4) |
-| Accessibility and keyboard: focus to the new screen's heading, focus returned on dialog close, localized skip link first in tab order, reduced motion, `dir="auto"` text, locale-aware dates | Verified | screen tests (focus); e2e axe on 22 screens with no serious or critical findings (recorded moderate: none after the landmark fix); keyboard-only path; manual (RTL layout under the Arabic locale, no overflow) |
-| Responsive: 360, 768, 1024, 1440 px without horizontal overflow; narrow-phone header wrap; New conversation reachable below the desktop breakpoint (defect found manually and fixed `d559325`) | Verified | e2e screenshots at four viewports; manual at 375×812 |
-| States audit (loading skeletons, empty, error, offline per screen; ADR-0005 §3); last route stub removed | Implemented; screen states Tested | unit per screen; e2e |
-| Localization: catalogue export `pnpm i18n:extract` → `apps/web/i18n/en.json` (325 strings); no machine-drafted Bengali/Arabic | Verified | file generated and committed; e2e RTL check |
-| End-to-end suite in CI dev-env (Chromium install, run after integration, annotations, evidence upload) | Verified in CI | run 40098979625: e2e 4 passed; first run 40097078795 exposed the refresh defect |
-| ADR-0005, THREAT_MODEL (TM-11 note, TM-12 Verified for web, TM-13 ignore list, TM-25 note, new TM-26), runbook §10 with cross-browser record, this status | Implemented | `docs/architecture/ADR-0005-web-experience.md` (Status: Accepted) |
+| Android and iOS Capacitor 8 projects committed; release variant (https origin, no cleartext, no backup) and debug variant (http origin on Android, cleartext only in the debug build type; iOS local-network cleartext only) (ADR-0006 D1, D2; TM-27, TM-28) | Implemented; `cap sync` Verified locally for both platforms; **native builds not yet run** (CI) | `apps/mobile/{android,ios}`, `capacitor.config.ts`, debug manifest overlay |
+| CSP `connect-src` derived from the configured homeserver and API origins at build time (ADR-0006 D6) | Verified | unit (`csp.test.ts`); dev page inspected; production bundle inspected |
+| Session record in native secure storage (Keystore/Keychain, no cloud sync, this-device-only); recovery key never stored; controller unchanged (ADR-0006 D3; TM-23) | Verified (logic) | unit with a fake plugin; spike `secure_storage` / `secure_storage_cleared` (the browser run uses the IndexedDB store; the native plugin is exercised only on a device) |
+| Lifecycle: resume nudges sync; back button goes back or minimises; safe-area insets; mobile key-storage sentence in the privacy notes (ADR-0001 C2a) | Verified (logic) | unit with a fake App plugin; phone checklist pending |
+| Content-free push plumbing: `event_id_only` pusher registration, gateway stub in compose, Synapse whitelist for the compose network (ADR-0006 D5; TM-12) | Verified at the gateway boundary | unit; integration (`push.integration.test.ts`: the stub received `counts, devices, event_id, prio, room_id` only, no violations; pusher removed afterwards) |
+| Push delivery to devices (FCM/APNs through Sygnal, device token provider, push plugin) | **Deferred** (owner decision: no credentials) | ADR-0006 D5 records the Sygnal configuration for later |
+| On-device spike runner (flagged build, absent from ordinary bundles) with 13 checks and the Node peer (ADR-0006 D7) | Verified in Chromium: **13/13 PASS** | local run 2026-10-24 (two accounts, phase 1 → peer → reload → phase 2); the CI `checks` job greps the production bundle for the marker |
+| Mobile workflow: debug and spike APK artifacts, Android emulator spike (compose Synapse + push stub + peer), iOS simulator build and spike (pip Synapse), annotations and evidence artifacts (ADR-0006 D8) | Implemented; **not yet run** | `.github/workflows/mobile.yml`, `apps/mobile/scripts/spike-*.sh`, `synapse-pip.sh`, `spike-report.mjs` |
+| ADR-0006, THREAT_MODEL (TM-12, TM-23, new TM-27, TM-28), runbook §11 with the device record, this status | Implemented | `docs/architecture/ADR-0006-mobile-shell.md` (Status: Proposed) |
 
 ## Verification
-Executed 2026-10-24 on Windows 11, Node 22.20, pnpm 12.14, TypeScript 6.0.3, Docker Desktop (Synapse 1.163.x, MongoDB 7), Playwright 1.64.1 with Chromium headless shell 156:
+Executed 2026-10-24 on Windows 11, Node 22.20, pnpm 12.14, TypeScript 6.0.3, Docker Desktop (Synapse 1.163.x, MongoDB 7, push stub):
 
-- `pnpm format:check`, `pnpm lint`, `pnpm typecheck` (now also `tsconfig.e2e.json`), `pnpm build` — pass at the tip.
-- `pnpm --filter @cs/web test` — 36 files, **261 tests pass** (Phase 3 tip: 236).
-- `pnpm test` (whole workspace, integration skipped offline by design) — 42 files pass, 8 skipped; **335 tests pass, 22 skipped**.
-- `HOMESERVER_URL=http://localhost:8008 pnpm test:integration` — final run at the tip: 7 files pass, 1 skipped (the expiry file, gated on `ACCESS_TOKEN_LIFETIME_MS`); **20 tests pass, 2 skipped**, about 2 min; the Phase 4 files (`profile-devices`, `privacy`, `blocking`) are included. One full-suite run earlier in the day had the Phase 3 messaging test "warns about the recipient's unverified devices" time out while the blocking test ran in parallel; it passed on its own immediately afterwards (flake under parallel load, noted to watch in CI).
-- Defect from the first CI run, reproduced locally with `refreshable_access_token_lifetime: 10s`: setup and the tab take-over ended in "Your session has expired" because the SDK (on 401) and the controller (proactively) both refreshed with the same single-use token. Fix (ADR-0005 D11): the SDK no longer receives the refresh token, a take-over starts from the pair the other tab saved last, and a refresh rejected after another tab rotated the pair adopts the stored pair. Unit: 264 web tests pass (3 new). Under the 10 s lifetime locally: `pnpm test:e2e` **4 passed** (1.9 min) and `ACCESS_TOKEN_LIFETIME_MS=10000 pnpm test:integration` **8 files, 22 tests pass** when run alone (a run started straight after the browser suite had 4 timeouts; rerun clean, recorded as load-related). Lifetime restored to 5 m afterwards.
-- `pnpm test:e2e` (5 m tokens) — **4 passed** in 1.3 min against the production build and the compose Synapse (journeys 35.8 s, session 10.2 s, accessibility public 5.8 s and signed-in 24.5 s); axe: no serious or critical findings on any visited screen; artifacts in `apps/web/e2e-results`.
-- Manual (runbook §10, built-in browser): settings hub; display name change seen by the other account; read receipts off by default then "Read by p4-bob" once B shared; presence "Last active … ago" after B stopped sharing; block confirmation and banner, Blocked users list, message sent while blocked not delivered, delivery after unblock; second tab blocked and take-over in both directions; Arabic locale flips the layout without overflow; 375 px phone layout without overflow (header wrap defect found and fixed); the "New conversation" dead end below the desktop breakpoint found and fixed. Not observed: an OS notification (permission blocked in the built-in browser) and a third device signing out the others (covered by the e2e suite and the integration test).
-- Cross-browser record (runbook §10): Chromium by the AI contributor (e2e + built-in browser); Chrome, Edge and Android Chrome entries **pending the owner**; Firefox and Safari not verified.
-- CI: run 40097078795 on `6e3d80d` — checks, secrets-scan, poc-e2ee green; dev-env failed only in the e2e step (1 of 4) as described above. Fix run 40098979625 on `7c605a3`: all four jobs green; e2e 4 passed in 57 s; axe recorded only the moderate landmark finding on the other-tab screen.
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build` (includes `cap sync` of both native projects) — pass at the tip. Spike marker absent from the production bundle, present in the spike build (checked by grep).
+- `pnpm test` (whole workspace) — 46 files pass, 10 skipped by design; **348 tests pass, 24 skipped** (integration and the spike peer skip without their environment). Web alone: 274.
+- `HOMESERVER_URL=http://localhost:8008 npx vitest run --project web-integration push.integration` — **1 passed**: the gateway stub recorded two pushes for the invited and messaged account with keys `counts, devices, event_id, prio, room_id` and no forbidden field; the Synapse log shows `Received response to POST http://cs-push-stub:8010/_matrix/push/v1/notify: 200`.
+- Spike runner in Chromium (spike build served by `vite preview`, compose Synapse): phase 1 `web_locks, secure_storage, wasm_crypto, crypto_setup, sync, encrypt_decrypt, reply_sent` PASS; peer `peer_roundtrip` PASS; after reload `session_restores, store_persists, history_persists, revocation, secure_storage_cleared` PASS. One defect found and fixed during this run: the history check read the cached timeline before decryption finished; it now waits and pages once, as the app does.
+- Not run locally (no toolchain): Gradle and Xcode builds, the emulator and simulator spikes, the owner's phone checklist.
+- CI: **not run** for Phase 5 yet (nothing pushed). The Mobile workflow's first run will also be the first execution of the Gradle and Xcode builds; first-run fixes are expected, as in Phase 4.
 
-## Phase 4 exit gate (IMPLEMENTATION_PLAN.md)
-| Criterion | Evidence |
-|---|---|
-| Primary user journeys work from sign-in to encrypted conversation | e2e journeys spec (register → setup → start by identifier → accept → exchange → details) + manual |
-| Responsive layouts remain usable at supported viewport sizes | e2e at 360/768/1024/1440 with screenshots and overflow checks + manual 375 px; owner's Android Chrome check pending |
-| Session restoration and sign-out behave correctly | e2e (reload restores; sign out; revoked device → sign-in with reason) + existing unit/integration |
-| Keyboard and accessibility checks pass against the project's target | axe WCAG 2.x A/AA on every visited screen (no serious/critical) + keyboard-only e2e path + focus screen tests |
-| The production web build passes | e2e runs against `vite preview` of `pnpm build`; `checks` job builds |
-| Manual cross-browser verification is recorded | runbook §10 record: Chromium done; Chrome/Edge/Android Chrome rows await the owner |
+## Phase 5 exit gate (IMPLEMENTATION_PLAN.md)
+| Criterion | Evidence so far | Outstanding |
+|---|---|---|
+| Android and iOS builds install and launch | native projects generated and synced | Mobile workflow run (APK, emulator, simulator); owner's phone install |
+| Encrypted direct messaging works across web and mobile | spike `encrypt_decrypt` + `peer_roundtrip` in Chromium with the web client's own code | the same on the emulator and simulator; owner's phone ↔ web |
+| Device verification and session revocation work as designed | spike `revocation`; Phase 2/3 flows unchanged | owner's phone: verify from web, sign out from web |
+| Push notifications do not expose message contents by default | gateway-boundary integration test; generic text in the app | delivery deferred (no credentials) — recorded |
+| Offline and reconnection flows pass manual tests | Phase 3 web evidence; lifecycle hooks unit-tested | owner's phone: airplane mode, background/foreground |
 
-Gate **closed 2026-10-24**: evidence accepted by the owner; ADR-0005 Accepted. The Chrome/Edge and Android Chrome rows of the runbook §10 record remain for the owner to fill in.
+Gate **open**: implementation complete; device evidence pending the first Mobile workflow run and the owner's phone checklist. iOS is simulator-only by the owner's decision (real device Blocked), so ADR-0001 C2 can close for Android only.
 
 ## Blockers and risks
-- **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5).
-- **R5 — Toolchain pins** (TypeScript 6.0.3; pnpm `allowBuilds`).
-- **R6 — Web key storage is origin-scoped IndexedDB** (TM-11); HTTP-header CSP is Phase 7.
+- **R1 — Mobile E2EE on real devices untested**: now narrowed to the Mobile workflow run and the owner's phone; iOS real device Blocked (no Mac/iPhone).
+- **R5 — Toolchain pins** (TypeScript 6.0.3; pnpm `allowBuilds`); Capacitor 8 requires Android Studio 2025.2.1+ / Xcode 26 for anyone building locally.
+- **R6 — Web key storage is origin-scoped IndexedDB** (TM-11); on mobile the SDK stores are WebView-resident (TM-23), disclosed.
 - **R7 — Registration open on the dev homeserver only**; gating is Phase 7/8.
-- **R8 — Pending (unsent) messages live in memory** (deferred to Phase 7 reliability).
+- **R8 — Pending (unsent) messages live in memory** (Phase 7).
 - **R9 — Recipient's unverified devices read new messages** until the user acts (ADR-0004 D7).
-- **R10 — Settings are client-honoured, not server-enforced** (except blocking): another client could ignore them; the privacy screen says so (ADR-0005 D2).
-- **R11 — Without the Web Locks API a single tab is assumed** (all supported browsers have it; documented gap, TM-26).
-- The locale choice is not persisted across reloads; English strings under the Arabic locale show sentence punctuation on the left (expected until translated text exists).
-- After an unblock the homeserver re-syncs the room: the other person's "Read by" marker reappears on their next read, and a message they sent while blocked may or may not surface (integration: it did; manual: it did not, its key having been shared while ignored).
-- Integration tests time out when run straight after the browser suite on the same Synapse (seen twice today; clean when run alone). CI runs them before the e2e step.
+- **R10 — Settings client-honoured except blocking** (ADR-0005 D2).
+- **R12 — Push delivery deferred**: phones get no notifications until FCM/APNs credentials exist; the privacy screen says so.
+- **R13 — Debug builds accept plain-http homeservers**; only development homeservers may be used with them (TM-27).
+- The Mobile workflow's emulator job depends on KVM on `ubuntu-latest` and the iOS job on the `macos-26` image; both untested until the first run.
 
 ## Deferred
 | Item | Reason | Risk while deferred |
 |---|---|---|
-| Persist the locale choice; translated Bengali/Arabic tables | Translators work from `apps/web/i18n/en.json` (owner decision) | Low |
-| Persisted send queue across reloads | Phase 7 reliability | Medium (lost offline message after a reload) |
-| Avatar upload and media | Later releases (PRD §6.2) | n/a |
-| Discoverability, username claims, reports, moderation, account deletion | Phase 6 (application API) | Medium before real users |
-| Push notifications and push gateway | Phase 5 | Low |
-| HTTP-header CSP and security headers | Phase 7 | Medium (TM-11) |
-| Firefox and Safari verification | No access | Low |
-| Native Android/iOS projects and device spike | Phase 5 (ADR-0001 C2) | Medium |
+| FCM/APNs delivery, Sygnal, push plugin, device token provider | Credentials (owner) | Medium before beta (no mobile notifications) |
+| Real-iPhone verification; signing and store configuration | No Mac/iPhone | Medium (iOS unverified on hardware) |
+| App lock / biometrics | Not in scope | Low |
+| Persisted send queue; HTTP-header CSP; registration gating | Phase 7 | as before |
+| Discoverability, reports, moderation, account deletion | Phase 6 | as before |
 
 ## Decisions recorded 2026-10-24
-- **Settings data Matrix-native in Phase 4** (owner): profile API, ignore list, `org.cs.web.settings` account data (ADR-0005 D2).
-- **Localization: RTL plumbing and catalogue export, no machine-drafted text** (owner) (ADR-0005 D8).
-- **Browser notifications: generic text only, behind a setting** (owner) (ADR-0005 D5).
-- **Cross-browser record: Chrome/Edge and Android Chrome by the owner, Chromium by the AI contributor** (owner) (ADR-0005 D10).
-- **One active tab per device** (ADR-0005 D1); **public read receipts opt-in** (D3); **blocking is the homeserver's ignore list, explained honestly** (D4); **WCAG 2.2 AA target with axe gating** (D7); **e2e against the production build** (D9).
+- **Android via CI builds and the owner's phone; iOS simulator in CI only; push plumbing now, delivery later; stop and report if the spike fails** (owner).
+- **Capacitor 8 shell with committed native projects; release/debug variants; CSP from configuration** (ADR-0006 D1, D2, D6).
+- **Session record in platform secure storage; recovery key never stored** (ADR-0006 D3, amends the IMPLEMENTATION_PLAN wording).
+- **Content-free pushers proven at the gateway boundary** (ADR-0006 D5).
+- **The spike is a flagged build of the real client code** (ADR-0006 D7).
 
 ## Next approved action
-Produce the Phase 5 plan (plan mode, no code) and present it for approval. Implementation starts only after the owner approves the plan.
+Owner go-ahead to push `main`, which runs the Mobile workflow for the first time; fix first-run problems in the native builds or spike jobs; then the owner sideloads the APKs and fills the device record in runbook §11. The Phase 5 gate is decided on that evidence. No Phase 6 work starts before the gate closes.
 
 ## Last updated
 2026-10-24
