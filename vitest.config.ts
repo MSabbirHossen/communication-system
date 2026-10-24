@@ -14,6 +14,17 @@ export default defineConfig({
           environment: "node",
         },
       },
+      // Peer for the on-device spike (ADR-0006): runs only with SPIKE_PEER_USER and
+      // HOMESERVER_URL set by the mobile CI jobs; skipped otherwise.
+      {
+        test: {
+          name: "mobile-spike",
+          include: ["apps/web/test/spike/**/*.test.ts"],
+          environment: "node",
+          testTimeout: 300_000,
+          hookTimeout: 120_000,
+        },
+      },
       // Phase 2 service-layer tests against a real homeserver (skipped unless
       // HOMESERVER_URL is set): `pnpm test:integration` with the compose Synapse running.
       {

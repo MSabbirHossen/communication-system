@@ -8,6 +8,7 @@
     "build": "node scripts/sync.mjs",
     "build:web": "pnpm --filter @cs/web build && node scripts/sync.mjs",
     "typecheck": "tsc -p tsconfig.json",
+    "spike:report": "node scripts/spike-report.mjs",
     "cap": "cap"
   },
   "dependencies": {

@@ -27,6 +27,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: The device spike is absent from the production bundle (ADR-0006)
+        run: '! grep -rq "CS_SPIKE" apps/web/dist/assets'
       - name: Dependency audit (high and above; advisory until Phase 7)
         run: pnpm audit --audit-level=high
         continue-on-error: true

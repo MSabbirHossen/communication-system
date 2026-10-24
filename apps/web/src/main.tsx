@@ -26,6 +26,8 @@ import { SecurityProvider, realSecurityDeps } from "./session/security";
 import { ErrorBoundary } from "./shell/ErrorBoundary";
 import { ThemeProvider } from "./shell/ThemeProvider";
 
+class SpikeMode extends Error {}
+
 const root = createRoot(document.getElementById("root")!);
 
 try {
@@ -64,6 +66,15 @@ try {
     acquireTabLease: (deviceId, onLost) => acquireTabLease(deviceId, onLost),
   });
 
+  // On-device spike build (ADR-0006): the flag is replaced at build time, so the branch and
+  // the runner are absent from ordinary bundles (CI greps the output for the marker).
+  if (import.meta.env.VITE_MOBILE_SPIKE === "1") {
+    void import("./spike/runner").then((m) =>
+      m.runSpike(env, sessions, document.getElementById("root")!),
+    );
+    throw new SpikeMode();
+  }
+
   if (isNativePlatform()) {
     void installNativeLifecycle({
       onResume: () => controller.getSnapshot().client?.retryImmediately(),
@@ -86,11 +97,14 @@ try {
     </StrictMode>,
   );
 } catch (err) {
-  // Configuration errors list variable names only; safe to show in development.
-  root.render(
-    <div className="screen screen--centered" role="alert">
-      <h1 className="type-title">Configuration error</h1>
-      <p className="type-body">{err instanceof Error ? err.message : String(err)}</p>
-    </div>,
-  );
+  if (err instanceof SpikeMode) {
+    // the runner owns the page
+  } else
+    // Configuration errors list variable names only; safe to show in development.
+    root.render(
+      <div className="screen screen--centered" role="alert">
+        <h1 className="type-title">Configuration error</h1>
+        <p className="type-body">{err instanceof Error ? err.message : String(err)}</p>
+      </div>,
+    );
 }

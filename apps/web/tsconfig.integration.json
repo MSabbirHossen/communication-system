@@ -11,5 +11,5 @@
     "declarationMap": false,
     "allowImportingTsExtensions": true
   },
-  "include": ["test/integration"]
+  "include": ["test/integration", "test/spike"]
 }

@@ -1,0 +1,213 @@
+name: Mobile
+
+# Phase 5 (ADR-0006): native builds and the on-device spike. The development machine has
+# no Android SDK or Xcode, so these jobs are the build and proof path:
+# - android-build: debug and spike APKs to sideload (homeserver URL from the dispatch input)
+# - android-spike: the spike on an emulator against the compose Synapse and the Node peer
+# - ios-simulator: build, then the spike on the iOS simulator against a pip Synapse
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "infrastructure/**"
+      - ".github/workflows/mobile.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+    inputs:
+      homeserver_url:
+        description: "Homeserver URL baked into the sideload APKs (as the phone sees it)"
+        required: false
+        default: "http://10.0.2.2:8008"
+
+permissions:
+  contents: read
+
+env:
+  SPIKE_REQUIRED: web_locks,secure_storage,wasm_crypto,crypto_setup,sync,encrypt_decrypt,reply_sent,peer_roundtrip,session_restores,store_persists,history_persists,revocation,secure_storage_cleared
+
+jobs:
+  android-build:
+    name: Android debug and spike APKs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: pnpm install --frozen-lockfile
+      - name: Build the web client and sync (debug variant)
+        env:
+          VITE_HOMESERVER_URL: ${{ github.event.inputs.homeserver_url || 'http://10.0.2.2:8008' }}
+          CS_MOBILE_VARIANT: debug
+        run: pnpm build:packages && pnpm --filter @cs/mobile build:web
+      - name: Assemble the debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew --no-daemon assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/communication-system-debug.apk"
+      - name: Build the spike variant and assemble
+        env:
+          VITE_HOMESERVER_URL: ${{ github.event.inputs.homeserver_url || 'http://10.0.2.2:8008' }}
+          VITE_MOBILE_SPIKE: "1"
+          CS_MOBILE_VARIANT: debug
+        run: |
+          pnpm --filter @cs/mobile build:web
+          grep -rq "CS_SPIKE" apps/web/dist/assets
+          cd apps/mobile/android && ./gradlew --no-daemon assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/communication-system-spike.apk"
+      - name: Release build type compiles (no cleartext, no backup)
+        env:
+          VITE_HOMESERVER_URL: https://matrix.example.invalid
+        run: |
+          pnpm --filter @cs/mobile build:web
+          ! grep -rq "CS_SPIKE" apps/web/dist/assets
+          cd apps/mobile/android && ./gradlew --no-daemon assembleRelease
+          unzip -p app/build/outputs/apk/release/app-release-unsigned.apk AndroidManifest.xml | grep -c usesCleartextTraffic || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: |
+            ${{ runner.temp }}/communication-system-debug.apk
+            ${{ runner.temp }}/communication-system-spike.apk
+
+  android-spike:
+    name: Android emulator spike (System WebView)
+    runs-on: ubuntu-latest
+    needs: android-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: pnpm install --frozen-lockfile
+      - name: Start the compose Synapse and push stub
+        run: |
+          set -euo pipefail
+          node infrastructure/synapse/init.mjs
+          docker compose -f infrastructure/docker-compose.yml up -d
+          for i in $(seq 1 60); do
+            s=$(docker inspect --format '{{.State.Health.Status}}' cs-synapse 2>/dev/null || echo starting)
+            if [ "$s" = healthy ]; then break; fi; sleep 3
+          done
+          curl -fsS http://localhost:8008/_matrix/client/versions >/dev/null
+      - name: Build the spike APK (homeserver as the emulator sees it)
+        env:
+          VITE_HOMESERVER_URL: http://10.0.2.2:8008
+          VITE_MOBILE_SPIKE: "1"
+          CS_MOBILE_VARIANT: debug
+        run: |
+          pnpm build:packages && pnpm --filter @cs/mobile build:web
+          cd apps/mobile/android && ./gradlew --no-daemon assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run the spike on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          HOMESERVER_URL: http://localhost:8008
+          SPIKE_OUT: ${{ runner.temp }}/spike-out
+          NO_COLOR: "1"
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: bash apps/mobile/scripts/spike-android.sh apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish the report as annotations
+        if: always()
+        run: |
+          f="$RUNNER_TEMP/spike-out/report.txt"
+          if [ -f "$f" ]; then
+            echo "::notice title=android spike::$(grep -E '^== [0-9]+ passed' "$f" | tail -n1)"
+            grep -E '^FAIL' "$f" | head -n 12 | while IFS= read -r l; do echo "::error title=android spike::$l"; done
+            grep -E '^PASS' "$f" | head -n 14 | while IFS= read -r l; do echo "::notice title=android spike::$l"; done
+          else
+            echo "::error title=android spike::no report produced"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-spike-evidence
+          path: ${{ runner.temp }}/spike-out
+          if-no-files-found: ignore
+
+  ios-simulator:
+    name: iOS simulator build and spike (WKWebView)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start a development Synapse from pip
+        run: bash apps/mobile/scripts/synapse-pip.sh
+      - name: Build the spike web client and sync iOS
+        env:
+          VITE_HOMESERVER_URL: http://127.0.0.1:8008
+          VITE_MOBILE_SPIKE: "1"
+          CS_MOBILE_VARIANT: debug
+        run: pnpm build:packages && pnpm --filter @cs/mobile build:web
+      - name: Build for the simulator
+        working-directory: apps/mobile/ios/App
+        run: |
+          xcodebuild -version
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 40
+      - name: Boot a simulator and run the spike
+        env:
+          HOMESERVER_URL: http://127.0.0.1:8008
+          SPIKE_OUT: ${{ runner.temp }}/spike-out
+          NO_COLOR: "1"
+        run: |
+          set -euo pipefail
+          udid=$(xcrun simctl list devices available iPhone -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for v in d.values() for x in v if x["isAvailable"]))')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          app=$(find "$RUNNER_TEMP/dd/Build/Products" -name "App.app" -path "*iphonesimulator*" | head -n1)
+          bash apps/mobile/scripts/spike-ios.sh "$app"
+      - name: Publish the report as annotations
+        if: always()
+        run: |
+          f="$RUNNER_TEMP/spike-out/report.txt"
+          if [ -f "$f" ]; then
+            echo "::notice title=ios spike::$(grep -E '^== [0-9]+ passed' "$f" | tail -n1)"
+            grep -E '^FAIL' "$f" | head -n 12 | while IFS= read -r l; do echo "::error title=ios spike::$l"; done
+            grep -E '^PASS' "$f" | head -n 14 | while IFS= read -r l; do echo "::notice title=ios spike::$l"; done
+          else
+            echo "::error title=ios spike::no report produced"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-spike-evidence
+          path: ${{ runner.temp }}/spike-out
+          if-no-files-found: ignore
