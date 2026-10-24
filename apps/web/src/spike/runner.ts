@@ -92,6 +92,10 @@ export async function runSpike(
   root: HTMLElement,
 ): Promise<void> {
   const out = new Reporter(root);
+  window.addEventListener("error", (e) => out.line(`CS_SPIKE error window: ${e.message}`));
+  window.addEventListener("unhandledrejection", (e) =>
+    out.line(`CS_SPIKE error unhandled: ${String((e as PromiseRejectionEvent).reason)}`),
+  );
   const platform = nativePlatform();
   out.line(
     `CS_SPIKE info platform=${platform} homeserver=${env.homeserverUrl} ua=${navigator.userAgent}`,

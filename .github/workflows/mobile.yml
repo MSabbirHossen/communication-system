@@ -46,7 +46,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
       - run: pnpm install --frozen-lockfile
       - name: Build the web client and sync (debug variant)
         env:
@@ -97,7 +97,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
       - run: pnpm install --frozen-lockfile
       - name: Start the compose Synapse and push stub
         run: |
