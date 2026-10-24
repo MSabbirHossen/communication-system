@@ -172,6 +172,16 @@ const en = {
   "privacySettings.serverNote":
     "The server always sees who you talk to and when, your devices' public keys, and these settings themselves. It never sees message content.",
   "chat.readBy": "Read by {name}",
+  "notifications.generic": "New message",
+  "notifications.sender": "New message from {name}",
+  "notifications.permission": "Browser permission:",
+  "notifications.permission.default": "not asked yet",
+  "notifications.permission.granted": "allowed",
+  "notifications.permission.denied": "blocked in your browser settings",
+  "notifications.permission.unsupported": "not supported by this browser",
+  "notifications.permission.help":
+    "The browser decides whether notifications may appear at all; the choice above decides what they say. They are shown only while this tab is not in front.",
+  "notifications.allow": "Allow browser notifications",
   "presence.online": "Online",
   "presence.unavailable": "Away",
   "presence.offline": "Offline",

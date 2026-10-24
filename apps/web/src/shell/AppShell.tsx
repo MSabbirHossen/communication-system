@@ -4,6 +4,7 @@ import { DESKTOP_QUERY, useMediaQuery, useOnlineStatus } from "./hooks";
 import { Nav } from "./Nav";
 import { SecurityBanners } from "./SecurityBanners";
 import { usePresencePublisher } from "../session/useSettings";
+import { useNotifications } from "../session/useNotifications";
 
 export function OfflineBanner() {
   const online = useOnlineStatus();
@@ -23,6 +24,7 @@ export function OfflineBanner() {
 export function AppShell() {
   const desktop = useMediaQuery(DESKTOP_QUERY);
   usePresencePublisher();
+  useNotifications();
   return (
     <div
       className={`shell ${desktop ? "shell--desktop" : "shell--mobile"}`}

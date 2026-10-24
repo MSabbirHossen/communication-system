@@ -4,6 +4,11 @@ import { Switch } from "../components/Switch";
 import { t } from "../i18n";
 import { toAuthError, type AuthError } from "../matrix/errors";
 import type { NotificationPreview, UserSettings } from "../matrix/settings";
+import {
+  notificationPermission,
+  requestNotificationPermission,
+  type NotificationPermissionState,
+} from "../session/notifications";
 import { useUserSettings } from "../session/useSettings";
 import { authErrorMessage } from "./auth";
 
@@ -18,6 +23,13 @@ export function PrivacySettingsScreen() {
   const { settings, update } = useUserSettings();
   const [error, setError] = useState<AuthError | null>(null);
   const [busy, setBusy] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermissionState>(() =>
+    notificationPermission(),
+  );
+
+  const allowNotifications = () => {
+    void requestNotificationPermission().then(setPermission);
+  };
 
   const change = (patch: Partial<UserSettings>) => {
     setError(null);
@@ -80,6 +92,22 @@ export function PrivacySettingsScreen() {
           ))}
           <p className="type-meta text-muted">{t("privacySettings.preview.help")}</p>
         </fieldset>
+        <div className="field">
+          <p className="type-body">
+            {t("notifications.permission")}{" "}
+            <span className="text-muted" data-testid="notification-permission">
+              {t(`notifications.permission.${permission}`)}
+            </span>
+          </p>
+          <p className="type-meta text-muted">{t("notifications.permission.help")}</p>
+          {permission === "default" && settings.notificationPreview !== "off" && (
+            <div className="actions actions--start">
+              <button type="button" className="button" onClick={allowNotifications}>
+                {t("notifications.allow")}
+              </button>
+            </div>
+          )}
+        </div>
       </section>
 
       <p className="type-meta text-muted">{t("privacySettings.serverNote")}</p>

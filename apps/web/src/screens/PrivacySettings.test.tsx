@@ -95,3 +95,50 @@ describe("privacy settings screen", () => {
     expect(screen.getByRole("radio", { name: /new message from/i })).toBeChecked();
   });
 });
+
+describe("browser notification permission", () => {
+  it("shows the browser state apart from the setting and asks only on the button", async () => {
+    mockViewport(true);
+    const requestPermission = vi.fn(async () => "granted" as const);
+    class FakeNotification {
+      static permission = "default";
+      static requestPermission = requestPermission;
+    }
+    vi.stubGlobal("Notification", FakeNotification);
+    try {
+      const fake = settingsClient();
+      const c = await controllerIn("ready", { createMatrixClient: vi.fn(async () => fake.client) });
+      renderApp("/settings/privacy", c);
+      expect(await screen.findByTestId("notification-permission")).toHaveTextContent(
+        "not asked yet",
+      );
+      expect(requestPermission).not.toHaveBeenCalled();
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: "Allow browser notifications" }));
+      await waitFor(() =>
+        expect(screen.getByTestId("notification-permission")).toHaveTextContent("allowed"),
+      );
+      expect(requestPermission).toHaveBeenCalledTimes(1);
+      expect(
+        screen.queryByRole("button", { name: "Allow browser notifications" }),
+      ).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("says when the browser does not support notifications", async () => {
+    mockViewport(true);
+    vi.stubGlobal("Notification", undefined);
+    try {
+      const fake = settingsClient();
+      const c = await controllerIn("ready", { createMatrixClient: vi.fn(async () => fake.client) });
+      renderApp("/settings/privacy", c);
+      expect(await screen.findByTestId("notification-permission")).toHaveTextContent(
+        "not supported",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
