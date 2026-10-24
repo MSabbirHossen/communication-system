@@ -158,7 +158,51 @@ Manual two-account check in one browser (one account per hostname):
 | Firefox | — | — | — | — | not verified (no access) |
 | Safari / iOS Safari | — | — | — | — | not verified (no access) |
 
-## 11. Reset everything
+## 11. Phase 5: mobile builds, the device spike and the phone checklist
+
+The development machine has no Android SDK or Xcode: native builds run in GitHub Actions (`.github/workflows/mobile.yml`). Locally you can build the web client and sync the native projects:
+
+```bash
+CS_MOBILE_VARIANT=debug pnpm --filter @cs/mobile build:web
+```
+
+Push plumbing locally: the compose environment now includes the push gateway stub (`curl http://localhost:8010/health`); `pnpm test:integration` includes the content-free pusher test (an existing `synapse/data/homeserver.yaml` needs the `ip_range_whitelist` lines from `infrastructure/synapse/dev-overrides.yaml` appended, then `docker compose … restart synapse`).
+
+### Spike in a browser (same runner code)
+
+```bash
+VITE_MOBILE_SPIKE=1 pnpm --filter @cs/web build && pnpm --filter @cs/web preview
+```
+
+Open http://localhost:4173: phase 1 prints `CS_SPIKE … PASS` lines and the throwaway account id. In another terminal run the peer with that id:
+
+```bash
+SPIKE_PEER_USER=@spike-web-xxxx:localhost HOMESERVER_URL=http://localhost:8008 npx vitest run --project mobile-spike
+```
+
+When the page shows `phase1 DONE`, reload it: phase 2 verifies restore, persisted history, revocation and cleanup. Expected: 13 of 13 checks PASS (Chromium, 2026-10-24).
+
+### Android: sideload and run on your phone
+
+1. Run the **Mobile** workflow manually (Actions → Mobile → Run workflow) with `homeserver_url` set to your PC's address as the phone sees it, e.g. `http://192.168.1.20:8008` (same Wi-Fi; allow inbound 8008 in Windows Firewall for the Docker-published port). Download the `android-apks` artifact.
+2. **Spike APK** (`communication-system-spike.apk`): install it (allow installs from this source), open it, and read the on-screen lines. When it shows `CS_SPIKE account @spike-android-…`, start a conversation with that id from the web client (People → the id → Start) and send any message: the phone shows `encrypt_decrypt PASS` and replies "pong …" (visible in the web client). Then force-stop the app (Settings → Apps) and open it again: phase 2 should end with `phase2 DONE` and all checks PASS. Photograph or copy the lines into the record below.
+3. **Debug APK** (`communication-system-debug.apk`): the real app. Checklist: create an account (recovery key shown once); from the web client start a conversation with it and exchange messages both ways; verify the phone's device from the web client (emoji); background the app and return (messages continue); turn on airplane mode, send a message (Sending…), turn it off (Sent, received on web); force-stop and reopen (still signed in, history present); from the web client's Devices & security sign out the phone's device: the phone drops to sign-in with "Your session has expired"; the back button returns to the previous screen and minimises at the root.
+
+### iOS
+
+Built and run on the iOS simulator in CI only (`ios-spike-evidence` artifact). A real iPhone needs a Mac with Xcode 26 and an Apple developer account: **Blocked** for now.
+
+### Device record
+
+| Platform | Device / OS / WebView | Checked by | Date | Spike | Checklist |
+|---|---|---|---|---|---|
+| Chromium (browser) | Windows 11, Chrome 152 | AI contributor | 2026-10-24 | 13/13 PASS | n/a |
+| Android emulator | API 34 x86_64, System WebView | CI | — | see STATUS | n/a |
+| Android phone | — | owner | — | pending | pending |
+| iOS simulator | macOS 26 runner, Xcode 26 | CI | — | see STATUS | n/a |
+| iPhone | — | — | — | Blocked | Blocked |
+
+## 12. Reset everything
 
 ```bash
 pnpm dev:env:reset
@@ -166,7 +210,7 @@ pnpm dev:env:reset
 
 Deletes Synapse data and the MongoDB volume, then re-initialises.
 
-## 12. Environment boundaries
+## 13. Environment boundaries
 
 | `NODE_ENV` / `VITE_APP_ENV` | Behaviour |
 |---|---|
@@ -176,7 +220,7 @@ Deletes Synapse data and the MongoDB volume, then re-initialises.
 
 Production deployment (TLS, PostgreSQL for Synapse, secret management) is documented in later phases; this compose file is for development only.
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 - `docker: command not found`: install Docker Desktop and reopen the terminal.
 - Synapse never becomes healthy: `docker logs cs-synapse`; a wrong `UID/GID` in `infrastructure/.env` makes `/data` unwritable, rerun `pnpm dev:env:reset`.
