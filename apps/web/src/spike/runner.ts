@@ -108,7 +108,11 @@ export async function runSpike(
     if (stored) await phase2(env, sessions, out, stored.deviceId, stored.userId, stored);
     else await phase1(env, sessions, out, platform);
   } catch (e) {
-    out.line(`CS_SPIKE error ${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}`);
+    const detail =
+      e instanceof Error
+        ? `${e.name}: ${e.message} ${(e.stack ?? "").split("\n").slice(1, 3).join(" | ")}`
+        : String(e);
+    out.line(`CS_SPIKE error ${detail}`);
     out.line("CS_SPIKE phase ABORTED");
   }
 }
@@ -123,7 +127,9 @@ async function phase1(
 
   const id = nonce();
   const creds = { username: `spike-${platform}-${id}`, password: `Spike-${nonce()}-${nonce()}` };
+  out.line(`CS_SPIKE step register ${creds.username}`);
   const session = await register(env.homeserverUrl, creds, `Spike ${platform}`);
+  out.line("CS_SPIKE step registered");
   await sessions.saveSession(session);
   const back = await sessions.loadSession();
   out.check(
@@ -133,6 +139,7 @@ async function phase1(
   );
 
   const holder = new SecretStorageKeyHolder();
+  out.line("CS_SPIKE step createClient");
   const client = await createMatrixClient({
     session,
     onTokenRefresh: () => {},
@@ -148,6 +155,7 @@ async function phase1(
   );
   if (!keys) return;
 
+  out.line("CS_SPIKE step cryptoSetup");
   const outcome = await ensureCryptoReady(client, holder, {
     requestPassword: async () => creds.password,
     requestRecoveryKey: async () => null,

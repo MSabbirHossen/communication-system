@@ -144,6 +144,8 @@ jobs:
             echo "::notice title=android spike::$(grep -E '^== [0-9]+ passed' "$f" | tail -n1)"
             grep -E '^FAIL' "$f" | head -n 12 | while IFS= read -r l; do echo "::error title=android spike::$l"; done
             grep -E '^PASS' "$f" | head -n 14 | while IFS= read -r l; do echo "::notice title=android spike::$l"; done
+            cat "$RUNNER_TEMP"/spike-out/phase1.log "$RUNNER_TEMP"/spike-out/peer.log "$RUNNER_TEMP"/spike-out/phase2.log 2>/dev/null | grep -oE 'CS_SPIKE (error|info|phase|account|step)[^"]*' | head -n 8 | while IFS= read -r l; do echo "::warning title=android spike log::$l"; done
+            cat "$RUNNER_TEMP"/spike-out/phase1.log "$RUNNER_TEMP"/spike-out/phase2.log 2>/dev/null | grep -E '\[error\]|Error|error:' | grep -v CS_SPIKE | head -n 6 | cut -c1-400 | while IFS= read -r l; do echo "::warning title=android webview::$l"; done
           else
             echo "::error title=android spike::no report produced"
           fi
@@ -202,6 +204,8 @@ jobs:
             echo "::notice title=ios spike::$(grep -E '^== [0-9]+ passed' "$f" | tail -n1)"
             grep -E '^FAIL' "$f" | head -n 12 | while IFS= read -r l; do echo "::error title=ios spike::$l"; done
             grep -E '^PASS' "$f" | head -n 14 | while IFS= read -r l; do echo "::notice title=ios spike::$l"; done
+            cat "$RUNNER_TEMP"/spike-out/phase1.log "$RUNNER_TEMP"/spike-out/peer.log "$RUNNER_TEMP"/spike-out/phase2.log 2>/dev/null | grep -oE 'CS_SPIKE (error|info|phase|account|step)[^"]*' | head -n 8 | while IFS= read -r l; do echo "::warning title=ios spike log::$l"; done
+            cat "$RUNNER_TEMP"/spike-out/phase1.log "$RUNNER_TEMP"/spike-out/phase2.log "$RUNNER_TEMP"/spike-out/unified.log 2>/dev/null | grep -E '\[error\]|Error|error:' | grep -v CS_SPIKE | head -n 6 | cut -c1-400 | while IFS= read -r l; do echo "::warning title=ios webview::$l"; done
           else
             echo "::error title=ios spike::no report produced"
           fi
