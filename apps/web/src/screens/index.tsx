@@ -4,10 +4,16 @@ import { t } from "../i18n";
 export function WelcomeScreen() {
   return (
     <section className="screen screen--centered" aria-labelledby="welcome-title">
+      <p className="type-meta text-muted">{t("app.name")}</p>
       <h1 id="welcome-title" className="type-title">
         {t("welcome.title")}
       </h1>
       <p className="type-body">{t("welcome.body")}</p>
+      <ul className="welcome__points type-body">
+        <li>{t("welcome.points.encrypted")}</li>
+        <li>{t("welcome.points.devices")}</li>
+        <li>{t("welcome.points.private")}</li>
+      </ul>
       <div className="actions">
         <Link to="/register" className="button button--primary">
           {t("welcome.create")}
@@ -16,8 +22,29 @@ export function WelcomeScreen() {
           {t("welcome.signIn")}
         </Link>
       </div>
-      <Link to="/privacy" className="link">
-        {t("welcome.privacy")}
+      <p className="type-meta welcome__links">
+        <Link to="/privacy" className="link">
+          {t("welcome.privacy")}
+        </Link>
+        {" · "}
+        <Link to="/terms" className="link">
+          {t("welcome.terms")}
+        </Link>
+      </p>
+    </section>
+  );
+}
+
+/** Placeholder until the closed-beta terms exist (Phase 8). */
+export function TermsScreen() {
+  return (
+    <section className="screen screen--centered" aria-labelledby="terms-title">
+      <h1 id="terms-title" className="type-title">
+        {t("terms.title")}
+      </h1>
+      <p className="type-body">{t("terms.body")}</p>
+      <Link to="/" className="link">
+        {t("nav.back")}
       </Link>
     </section>
   );

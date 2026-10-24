@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Outlet, useNavigate, useOutletContext, useParams } from "react-router";
-import { t } from "../i18n";
+import { Skeleton } from "../components/Skeleton";
+import { dateTimeFormat, t } from "../i18n";
 import { toAuthError, type AuthError } from "../matrix/errors";
 import { acceptInvite, declineInvite, type DirectConversation } from "../matrix/rooms";
 import { useSession } from "../session/SessionProvider";
@@ -18,10 +19,10 @@ export function formatConversationTime(ts: number, now = Date.now()): string {
     d.getFullYear() === n.getFullYear() &&
     d.getMonth() === n.getMonth() &&
     d.getDate() === n.getDate();
-  if (sameDay) return new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(d);
+  if (sameDay) return dateTimeFormat({ timeStyle: "short" }).format(d);
   if (d.getFullYear() === n.getFullYear())
-    return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(d);
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(d);
+    return dateTimeFormat({ day: "numeric", month: "short" }).format(d);
+  return dateTimeFormat({ dateStyle: "medium" }).format(d);
 }
 
 function previewText(c: DirectConversation): string {
@@ -106,7 +107,9 @@ function ConversationRow({
               </span>
             )}
           </p>
-          <p className="type-meta text-muted convo__preview">{previewText(c)}</p>
+          <p className="type-meta text-muted convo__preview" dir="auto">
+            {previewText(c)}
+          </p>
         </div>
         <span className="type-meta text-muted convo__time">{time}</span>
       </Link>
@@ -175,9 +178,7 @@ function ConversationList({ activeRoomId }: { activeRoomId: string | undefined }
         </p>
       )}
       {syncState === null ? (
-        <p className="type-body" role="status">
-          {t("loading")}
-        </p>
+        <Skeleton lines={5} />
       ) : conversations.length === 0 ? (
         <div className="empty">
           <h2 className="type-heading">{t("chats.empty.title")}</h2>

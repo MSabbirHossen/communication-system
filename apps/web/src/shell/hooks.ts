@@ -1,4 +1,5 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useLocation } from "react-router";
 
 /** True when the media query matches; subscribes to changes. */
 export function useMediaQuery(query: string): boolean {
@@ -32,4 +33,22 @@ export function useOnlineStatus(): boolean {
     () => (typeof navigator === "undefined" ? true : navigator.onLine),
     () => true,
   );
+}
+
+/**
+ * After navigating, move focus to the new screen's first heading (or the main region) so
+ * keyboard and screen-reader users land on the content, not at the top of the page.
+ */
+export function useRouteFocus(): void {
+  const { pathname } = useLocation();
+  const previous = useRef(pathname);
+  useEffect(() => {
+    if (previous.current === pathname) return;
+    previous.current = pathname;
+    const main = document.getElementById("main");
+    if (!main) return;
+    const target = main.querySelector<HTMLElement>("h1") ?? main;
+    if (!target.hasAttribute("tabindex")) target.tabIndex = -1;
+    target.focus({ preventScroll: false });
+  }, [pathname]);
 }

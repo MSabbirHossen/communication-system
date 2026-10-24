@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ConfirmDialog, PasswordPrompt } from "../components/dialogs";
-import { t } from "../i18n";
+import { dateTimeFormat, t } from "../i18n";
 import {
   getOwnIdentity,
   listOwnDevices,
@@ -18,9 +18,7 @@ import { authErrorMessage } from "./auth";
 
 function formatLastSeen(ts: number | undefined): string {
   if (!ts) return t("devices.lastSeen.unknown");
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(ts),
-  );
+  return dateTimeFormat({ dateStyle: "medium", timeStyle: "short" }).format(new Date(ts));
 }
 
 function VerificationBadge({ device }: { device: DeviceSummary }) {

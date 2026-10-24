@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 import { Composer } from "../components/Composer";
-import { t, type MessageKey } from "../i18n";
+import { dateTimeFormat, t, type MessageKey } from "../i18n";
 import { toAuthError, type AuthError } from "../matrix/errors";
 import { acceptInvite, declineInvite, type DirectConversation } from "../matrix/rooms";
 import {
@@ -19,7 +19,8 @@ import { useSession } from "../session/SessionProvider";
 import { useUserSettings } from "../session/useSettings";
 import { useBlockedUsers } from "../session/useBlocking";
 import { useRecipientSecurity } from "../session/useRecipientSecurity";
-import { useConversations, useRoom, useRoomTimeline } from "../session/useRooms";
+import { useConversations, useRoom, useRoomTimeline, useSyncState } from "../session/useRooms";
+import { Skeleton } from "../components/Skeleton";
 import { authErrorMessage } from "./auth";
 import type { ShellContext } from "./Chats";
 
@@ -42,8 +43,8 @@ function sameDay(a: number, b: number): boolean {
   );
 }
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
-const dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "full" });
+const timeFmt = () => dateTimeFormat({ timeStyle: "short" });
+const dateFmt = () => dateTimeFormat({ dateStyle: "full" });
 
 function StatusLabel({ item }: { item: Extract<MessageItem, { status: string }> }) {
   const key = `chat.status.${item.status}` as MessageKey;
@@ -70,7 +71,11 @@ function MessageRow({
   return (
     <li className={`msg ${side}`}>
       <div className="msg__bubble">
-        {item.kind === "text" && <p className="msg__body">{item.body}</p>}
+        {item.kind === "text" && (
+          <p className="msg__body" dir="auto">
+            {item.body}
+          </p>
+        )}
         {item.kind === "undecryptable" && (
           <p className="msg__placeholder">
             {t("chat.undecryptable")}{" "}
@@ -86,7 +91,7 @@ function MessageRow({
         )}
         <p className="msg__meta type-meta text-muted">
           <time dateTime={new Date(item.ts).toISOString()}>
-            {timeFmt.format(new Date(item.ts))}
+            {timeFmt().format(new Date(item.ts))}
           </time>
           {item.mine && item.kind !== "undecryptable" && <StatusLabel item={item} />}
           {item.mine && item.kind !== "undecryptable" && item.status === "failed" && (
@@ -170,6 +175,7 @@ export function ConversationScreen() {
   const { roomId = "" } = useParams();
   const { desktop } = useOutletContext<ShellContext>();
   const { client } = useSession();
+  const syncState = useSyncState();
   const room = useRoom(roomId);
   const conversation = useConversations().find((c) => c.roomId === roomId);
   const items = useRoomTimeline(room);
@@ -254,6 +260,7 @@ export function ConversationScreen() {
   }, []);
 
   if (!client || !room || !conversation) {
+    if (syncState === null) return <Skeleton lines={6} />;
     return (
       <div className="empty" role="alert">
         <h2 className="type-heading">{t("chat.notFound.title")}</h2>
@@ -381,7 +388,7 @@ export function ConversationScreen() {
               <li key={item.key} className="messages__group">
                 {separator && (
                   <p className="messages__date type-meta text-muted">
-                    {dateFmt.format(new Date(item.ts))}
+                    {dateFmt().format(new Date(item.ts))}
                   </p>
                 )}
                 <ul className="messages__inner">

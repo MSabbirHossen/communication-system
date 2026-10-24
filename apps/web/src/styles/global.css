@@ -700,3 +700,64 @@ code {
   text-align: end;
   margin: 0 var(--cs-space-2);
 }
+
+/* Loading skeletons (Phase 4 states audit) */
+.skeleton {
+  display: grid;
+  gap: var(--cs-space-3);
+  padding: var(--cs-space-2) 0;
+}
+.skeleton__bar {
+  display: block;
+  height: 1rem;
+  border-radius: var(--cs-radius-md);
+  background: var(--cs-color-border);
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+.skeleton__bar:nth-child(odd) {
+  width: 85%;
+}
+.skeleton__bar:nth-child(even) {
+  width: 60%;
+}
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Welcome */
+.welcome__points {
+  text-align: start;
+  display: inline-block;
+  margin: var(--cs-space-4) auto;
+  padding-inline-start: 1.25em;
+}
+.welcome__links {
+  margin-top: var(--cs-space-4);
+}
+
+/* Tablet (768–1023px): single-column shell with a comfortable reading width */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .shell__main > .pane,
+  .shell__main > .two-pane {
+    max-width: 760px;
+    margin-inline: auto;
+  }
+}
+
+/* Small phones (<360px): tighter spacing, nothing clipped */
+@media (max-width: 359px) {
+  .shell__main {
+    padding: var(--cs-space-2);
+  }
+  .pane {
+    padding: var(--cs-space-3);
+  }
+  .msg__bubble {
+    max-width: 92%;
+  }
+  .actions {
+    flex-wrap: wrap;
+  }
+}

@@ -1,6 +1,6 @@
 import { Outlet } from "react-router";
 import { t } from "../i18n";
-import { DESKTOP_QUERY, useMediaQuery, useOnlineStatus } from "./hooks";
+import { DESKTOP_QUERY, useMediaQuery, useOnlineStatus, useRouteFocus } from "./hooks";
 import { Nav } from "./Nav";
 import { SecurityBanners } from "./SecurityBanners";
 import { usePresencePublisher } from "../session/useSettings";
@@ -25,13 +25,14 @@ export function AppShell() {
   const desktop = useMediaQuery(DESKTOP_QUERY);
   usePresencePublisher();
   useNotifications();
+  useRouteFocus();
   return (
     <div
       className={`shell ${desktop ? "shell--desktop" : "shell--mobile"}`}
       data-layout={desktop ? "desktop" : "mobile"}
     >
       <a className="skip-link" href="#main">
-        Skip to content
+        {t("nav.skip")}
       </a>
       {desktop && <Nav variant="rail" />}
       <div className="shell__content">

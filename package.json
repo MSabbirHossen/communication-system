@@ -17,6 +17,7 @@
     "build": "pnpm -r --if-present build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "i18n:extract": "pnpm --filter @cs/web i18n:extract",
     "dev": "pnpm build:packages && concurrently -n api,web -c blue,green \"pnpm --filter @cs/api dev\" \"pnpm --filter @cs/web dev\"",
     "dev:env": "docker compose -f infrastructure/docker-compose.yml up -d",
     "dev:env:init": "node infrastructure/synapse/init.mjs",

@@ -46,6 +46,7 @@ export function Composer({
       <div className="composer__row">
         <textarea
           className="input composer__input"
+          dir="auto"
           aria-label={t("chat.composer.label")}
           placeholder={disabled ? t("chat.composer.disabled") : t("chat.composer.placeholder")}
           rows={1}

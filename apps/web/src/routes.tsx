@@ -1,6 +1,6 @@
 import { createBrowserRouter, createMemoryRouter, type RouteObject } from "react-router";
 import { AppShell } from "./shell/AppShell";
-import { NotFoundScreen, RouteErrorScreen, WelcomeScreen } from "./screens";
+import { NotFoundScreen, RouteErrorScreen, WelcomeScreen, TermsScreen } from "./screens";
 import { SettingsScreen } from "./screens/Settings";
 import { ProfileScreen } from "./screens/Profile";
 import { PrivacySettingsScreen } from "./screens/PrivacySettings";
@@ -44,6 +44,7 @@ export const routes: RouteObject[] = [
     errorElement: <RouteErrorScreen />,
   },
   { path: "/privacy", element: <PrivacyScreen />, errorElement: <RouteErrorScreen /> },
+  { path: "/terms", element: <TermsScreen />, errorElement: <RouteErrorScreen /> },
   {
     element: <RequireClient />,
     errorElement: <RouteErrorScreen />,

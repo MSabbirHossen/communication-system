@@ -15,12 +15,21 @@ const en = {
   "nav.people": "People",
   "nav.settings": "Settings",
   "nav.back": "Back",
+  "nav.skip": "Skip to content",
   "welcome.title": "Private messaging, end to end",
   "welcome.body":
     "Messages are encrypted on your device and can only be read by the people you send them to. Not even the server can read them.",
   "welcome.signIn": "Sign in",
   "welcome.create": "Create account",
   "welcome.privacy": "Read the privacy notes",
+  "welcome.terms": "Terms of service",
+  "welcome.points.encrypted": "End-to-end encrypted one-to-one messages",
+  "welcome.points.devices": "Your devices, verified by you",
+  "welcome.points.private":
+    "Private by default: no read receipts or discoverability unless you choose",
+  "terms.title": "Terms of service",
+  "terms.body":
+    "The terms of service are being prepared for the closed beta and will appear here before the first release. Until then this software is for development and testing only.",
   "chats.empty.title": "No conversations yet",
   "chats.empty.body": "Start one with someone's username or Matrix ID.",
   "chats.select": "Select a conversation",
@@ -423,6 +432,24 @@ export function setLocale(locale: Locale): void {
 
 export function getLocale(): Locale {
   return current;
+}
+
+/** The English catalogue, for export to translators (`pnpm i18n:extract`). */
+export function catalogue(): Record<MessageKey, string> {
+  return { ...en };
+}
+
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/** A date/time formatter for the active locale (cached per locale and options). */
+export function dateTimeFormat(options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${current}:${JSON.stringify(options)}`;
+  let f = formatters.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat(current, options);
+    formatters.set(key, f);
+  }
+  return f;
 }
 
 /**
