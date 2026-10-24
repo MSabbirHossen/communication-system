@@ -7,6 +7,7 @@ import {
   listOwnDevices,
   renameDevice,
   revokeDevice,
+  signOutOtherDevices,
 } from "./devices";
 
 function fakeClient(opts: { withCrypto?: boolean } = {}) {
@@ -37,6 +38,15 @@ function fakeClient(opts: { withCrypto?: boolean } = {}) {
     return {};
   });
   const setDeviceDetails = vi.fn(async () => ({}));
+  const deleteMultipleDevices = vi.fn(async (_ids: string[], auth?: unknown) => {
+    if (!auth) {
+      throw new MatrixError(
+        { errcode: "M_FORBIDDEN", session: "s", flows: [{ stages: ["m.login.password"] }] },
+        401,
+      );
+    }
+    return {};
+  });
   const client = {
     getUserId: () => "@alice:localhost",
     getDeviceId: () => "CUR1",
@@ -44,8 +54,9 @@ function fakeClient(opts: { withCrypto?: boolean } = {}) {
     getDevices: vi.fn(async () => ({ devices })),
     deleteDevice,
     setDeviceDetails,
+    deleteMultipleDevices,
   } as unknown as MatrixClient;
-  return { client, crypto, deleteDevice, setDeviceDetails };
+  return { client, crypto, deleteDevice, setDeviceDetails, deleteMultipleDevices };
 }
 
 describe("listOwnDevices", () => {
@@ -99,5 +110,28 @@ describe("revokeDevice", () => {
       password: "correct horse",
       session: "s",
     });
+  });
+});
+
+describe("signOutOtherDevices", () => {
+  it("deletes every device but the current one under password re-authentication", async () => {
+    const { client, deleteMultipleDevices } = fakeClient();
+    const requestPassword = vi.fn(async () => "correct horse");
+    expect(await signOutOtherDevices(client, requestPassword)).toEqual(["OLD1", "NOKEYS"]);
+    expect(deleteMultipleDevices).toHaveBeenCalledTimes(2);
+    expect(deleteMultipleDevices.mock.calls[1]![0]).toEqual(["OLD1", "NOKEYS"]);
+    expect(deleteMultipleDevices.mock.calls[1]![1]).toMatchObject({
+      type: "m.login.password",
+      password: "correct horse",
+    });
+  });
+
+  it("does nothing when this is the only device", async () => {
+    const { client, deleteMultipleDevices } = fakeClient();
+    (client.getDevices as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      devices: [{ device_id: "CUR1" }],
+    });
+    expect(await signOutOtherDevices(client, vi.fn())).toEqual([]);
+    expect(deleteMultipleDevices).not.toHaveBeenCalled();
   });
 });

@@ -132,6 +132,27 @@ const en = {
   "settings.theme.dark": "Dark",
   "settings.language": "Language",
   "settings.signOut": "Sign out of this device",
+  "settings.sections": "Settings sections",
+  "settings.profile": "Profile",
+  "settings.profile.body": "Your display name and identifier.",
+  "settings.privacy": "Privacy & notifications",
+  "settings.privacy.body": "Read receipts, presence, notification previews.",
+  "settings.blocked": "Blocked users",
+  "settings.blocked.body": "People whose messages and invitations you do not receive.",
+  "settings.devices.body": "Active sessions, verification, sign out other devices.",
+  "settings.privacyNotes.body": "What is encrypted, what the server can see.",
+  "settings.language.note":
+    "English is the only interface language in this beta; Bengali and Arabic layouts are prepared for translation.",
+  "profile.title": "Profile",
+  "profile.identifier": "Identifier",
+  "profile.identifier.note":
+    "Your username is part of this identifier and cannot be changed. Share it with people who want to message you.",
+  "profile.displayName": "Display name",
+  "profile.displayName.hint": "Shown to people you talk to. Up to 100 characters.",
+  "profile.field.required": "Enter a display name.",
+  "profile.field.too_long": "Use at most {max} characters.",
+  "profile.save": "Save",
+  "profile.saved": "Display name saved.",
   "settings.signedInAs": "Signed in as",
   "offline.banner": "You are offline. Messages will send when you reconnect.",
   "error.title": "Something went wrong",
@@ -267,6 +288,11 @@ const en = {
   "devices.reauth.body":
     "Enter your password to sign out a device. It is sent to the server once and not kept.",
   "devices.refresh": "Refresh list",
+  "devices.signOutOthers": "Sign out all other devices",
+  "devices.signOutOthers.title": "Sign out all other devices?",
+  "devices.signOutOthers.body":
+    "Every device except this one loses access immediately and must sign in again. Messages they already downloaded stay on those devices.",
+  "devices.signOutOthers.done": "{count} other device(s) signed out.",
 
   // Own-device verification (APP_FLOW 5.4)
   "verify.title": "Verify device",

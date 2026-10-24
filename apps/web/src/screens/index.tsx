@@ -1,7 +1,5 @@
 import { Link, useRouteError } from "react-router";
-import { t, type Locale, LOCALES, getLocale, setLocale } from "../i18n";
-import { useTheme, type ThemePreference } from "../shell/ThemeProvider";
-import { useSession, useSessionController } from "../session/SessionProvider";
+import { t } from "../i18n";
 
 export function WelcomeScreen() {
   return (
@@ -21,72 +19,6 @@ export function WelcomeScreen() {
       <Link to="/privacy" className="link">
         {t("welcome.privacy")}
       </Link>
-    </section>
-  );
-}
-
-export function SettingsScreen() {
-  const { preference, setPreference } = useTheme();
-  const controller = useSessionController();
-  const { session } = useSession();
-  const options: ThemePreference[] = ["system", "light", "dark"];
-  return (
-    <section className="pane" aria-labelledby="settings-title">
-      <h1 id="settings-title" className="type-heading pane__title">
-        {t("settings.title")}
-      </h1>
-      {session && (
-        <div className="field">
-          <p className="type-body">
-            {t("settings.signedInAs")} <code>{session.userId}</code>
-          </p>
-          <div className="actions actions--start">
-            <Link to="/settings/devices" className="button">
-              {t("settings.devices")}
-            </Link>
-            <button
-              type="button"
-              className="button"
-              onClick={() => {
-                void controller.signOut();
-              }}
-            >
-              {t("settings.signOut")}
-            </button>
-          </div>
-        </div>
-      )}
-      <fieldset className="field">
-        <legend className="type-body">{t("settings.theme")}</legend>
-        {options.map((o) => (
-          <label key={o} className="radio">
-            <input
-              type="radio"
-              name="theme"
-              value={o}
-              checked={preference === o}
-              onChange={() => setPreference(o)}
-            />
-            {t(`settings.theme.${o}` as const)}
-          </label>
-        ))}
-      </fieldset>
-      <div className="field">
-        <label htmlFor="locale" className="type-body">
-          {t("settings.language")}
-        </label>
-        <select
-          id="locale"
-          defaultValue={getLocale()}
-          onChange={(e) => setLocale(e.target.value as Locale)}
-        >
-          {(Object.keys(LOCALES) as Locale[]).map((l) => (
-            <option key={l} value={l}>
-              {LOCALES[l].label}
-            </option>
-          ))}
-        </select>
-      </div>
     </section>
   );
 }

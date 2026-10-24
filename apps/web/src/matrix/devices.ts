@@ -111,3 +111,23 @@ export async function revokeDevice(
   const userId = requireUserId(client);
   await withPasswordUia(userId, requestPassword, (auth) => client.deleteDevice(deviceId, auth));
 }
+
+/**
+ * Sign out every device except this one (bulk delete under password re-authentication).
+ * Returns the ids that were signed out. Like single revocation, this stops those devices'
+ * future access but cannot erase what they already downloaded (TRD §5.3).
+ */
+export async function signOutOtherDevices(
+  client: MatrixClient,
+  requestPassword: RequestPassword,
+): Promise<string[]> {
+  const userId = requireUserId(client);
+  const current = client.getDeviceId();
+  const { devices } = await client.getDevices();
+  const others = devices.map((d) => d.device_id).filter((id) => id !== current);
+  if (others.length === 0) return [];
+  await withPasswordUia(userId, requestPassword, (auth) =>
+    client.deleteMultipleDevices(others, auth),
+  );
+  return others;
+}

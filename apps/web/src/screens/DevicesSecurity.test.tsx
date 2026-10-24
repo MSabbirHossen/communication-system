@@ -37,6 +37,19 @@ function devicesClient() {
     if (i >= 0) devices.splice(i, 1);
     return {};
   });
+  const deleteMultipleDevices = vi.fn(async (ids: string[], auth?: unknown) => {
+    if (!auth) {
+      throw new MatrixError(
+        { errcode: "M_FORBIDDEN", session: "s", flows: [{ stages: ["m.login.password"] }] },
+        401,
+      );
+    }
+    for (const id of ids) {
+      const i = devices.findIndex((d) => d.device_id === id);
+      if (i >= 0) devices.splice(i, 1);
+    }
+    return {};
+  });
   const setDeviceDetails = vi.fn(async (id: string, body: { display_name: string }) => {
     const d = devices.find((x) => x.device_id === id);
     if (d) d.display_name = body.display_name;
@@ -49,10 +62,11 @@ function devicesClient() {
     getDevices: vi.fn(async () => ({ devices: [...devices] })),
     deleteDevice,
     setDeviceDetails,
+    deleteMultipleDevices,
     stopClient: vi.fn(),
     clearStores: vi.fn(async () => {}),
   } as unknown as MatrixClient;
-  return { client, deleteDevice, setDeviceDetails };
+  return { client, deleteDevice, setDeviceDetails, deleteMultipleDevices };
 }
 
 async function renderDevices() {
@@ -144,5 +158,27 @@ describe("devices & security screen", () => {
       expect(setDeviceDetails).toHaveBeenCalledWith("PHONE1", { display_name: "Old phone" }),
     );
     expect(await screen.findByText("Old phone")).toBeInTheDocument();
+  });
+});
+
+describe("sign out all other devices", () => {
+  it("confirms, re-authenticates and removes every other device", async () => {
+    const { deleteMultipleDevices } = await renderDevices();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Sign out all other devices" }));
+    const confirm = await screen.findByRole("dialog", { name: "Sign out all other devices?" });
+    await user.click(within(confirm).getByRole("button", { name: "Sign out all other devices" }));
+    const reauth = await screen.findByRole("dialog", { name: "Confirm it's you" });
+    await user.type(within(reauth).getByLabelText("Password"), "correct horse battery");
+    await user.click(within(reauth).getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(deleteMultipleDevices).toHaveBeenCalledTimes(2));
+    expect(deleteMultipleDevices.mock.calls[1]![0]).toEqual(["PHONE1"]);
+    expect(await screen.findByRole("status")).toHaveTextContent("1 other device(s) signed out.");
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("list", { name: "Your devices" })).getAllByRole("listitem"),
+      ).toHaveLength(1),
+    );
+    expect(screen.queryByRole("button", { name: "Sign out all other devices" })).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import {
   listOwnDevices,
   renameDevice,
   revokeDevice,
+  signOutOtherDevices,
   type DeviceSummary,
   type OwnIdentity,
 } from "../matrix/devices";
@@ -61,6 +62,8 @@ export function DevicesSecurityScreen() {
   const [busy, setBusy] = useState(false);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<DeviceSummary | null>(null);
+  const [confirmOthers, setConfirmOthers] = useState(false);
+  const [othersSignedOut, setOthersSignedOut] = useState<number | null>(null);
   const [passwordRequest, setPasswordRequest] = useState<{
     resolve: (pw: string) => void;
     reject: (e: Error) => void;
@@ -103,6 +106,24 @@ export function DevicesSecurityScreen() {
     setError(null);
     try {
       await revokeDevice(client, device.id, requestPassword);
+      reload();
+    } catch (e) {
+      if (!(e instanceof UiaCancelled)) setError(toAuthError(e));
+    } finally {
+      setPasswordRequest(null);
+      setBusy(false);
+    }
+  }
+
+  async function doSignOutOthers() {
+    if (!client) return;
+    setConfirmOthers(false);
+    setBusy(true);
+    setError(null);
+    setOthersSignedOut(null);
+    try {
+      const ids = await signOutOtherDevices(client, requestPassword);
+      setOthersSignedOut(ids.length);
       reload();
     } catch (e) {
       if (!(e instanceof UiaCancelled)) setError(toAuthError(e));
@@ -255,11 +276,36 @@ export function DevicesSecurityScreen() {
         </ul>
       )}
 
+      {othersSignedOut !== null && (
+        <p className="banner banner--ok" role="status">
+          {t("devices.signOutOthers.done", { count: othersSignedOut })}
+        </p>
+      )}
       <div className="actions">
         <button type="button" className="button" disabled={busy} onClick={reload}>
           {t("devices.refresh")}
         </button>
+        {devices !== null && devices.length > 1 && (
+          <button
+            type="button"
+            className="button button--danger"
+            disabled={busy}
+            onClick={() => setConfirmOthers(true)}
+          >
+            {t("devices.signOutOthers")}
+          </button>
+        )}
       </div>
+      {confirmOthers && (
+        <ConfirmDialog
+          title={t("devices.signOutOthers.title")}
+          body={t("devices.signOutOthers.body")}
+          confirmLabel={t("devices.signOutOthers")}
+          destructive
+          onConfirm={() => void doSignOutOthers()}
+          onCancel={() => setConfirmOthers(false)}
+        />
+      )}
 
       {confirmRevoke && (
         <ConfirmDialog
