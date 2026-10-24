@@ -117,7 +117,48 @@ Two accounts in one browser, one per hostname (each has its own storage):
 7. **Leave conversation** on B after confirmation: B's list no longer shows it.
 8. Invalid identifiers (`Bad Name!`, your own id) are rejected without a request; an unknown username reports "No account was found for".
 
-## 10. Reset everything
+## 10. Phase 4: web experience checks and end-to-end tests
+
+Service-layer tests for profile and devices, privacy settings and blocking run with the Phase 2/3 suite (`pnpm test:integration`, §8): expect 7 files to pass and 1 to be skipped, 20 tests pass and 2 skipped, without `ACCESS_TOKEN_LIFETIME_MS` (the expiry file runs only with it).
+
+End-to-end suite (Playwright, Chromium, axe) against the production build served by `vite preview` and your local Synapse:
+
+```bash
+pnpm --filter @cs/web exec playwright install chromium
+```
+
+```bash
+pnpm test:e2e
+```
+
+Expected: 4 tests pass in about five minutes (two-user journey; revoked-device session; accessibility and viewports, public and signed-in). Each visited screen is checked with axe: serious and critical findings fail, moderate and minor ones are printed as `axe <screen>: recorded …` and attached. Screenshots at 360×740, 768×1024, 1024×768 and 1440×900, traces for failures and axe reports land in `apps/web/e2e-results` (`pnpm --filter @cs/web exec playwright show-trace <trace.zip>` opens a trace). The suite registers throwaway accounts (`e2e-alice-…`, `e2e-bob-…`, `e2e-carol-…`, `e2e-dana-…`) on the homeserver; `pnpm dev:env:reset` removes them.
+
+Manual two-account check in one browser (one account per hostname):
+
+1. On http://localhost:5173 and http://second.localhost:5173 create accounts A and B and start a conversation (§9 steps 1 to 3).
+2. **Settings** on A: the hub lists Profile, Privacy & notifications, Blocked users, Devices & security, Privacy notes, theme and language. **Profile**: change the display name → "Display name saved." → B's conversation list shows the new name after the next sync.
+3. **Privacy & notifications** on both: **Share read receipts** is off by default. Turn it on for B, then open the conversation on B after A sent a message: A sees "Read by B" under that message. With it off, A sees nothing. **Share whether I am online** off on B: A's conversation details show B as offline. The notification text choice and the browser permission row ("Browser permission: not asked yet" → **Allow browser notifications** → "allowed") are separate controls.
+4. Notifications: with the permission allowed on A, switch to another tab and send from B: a notification "New message" (or "New message from B" when chosen) appears without the text; clicking it opens the conversation. In front, nothing is shown.
+5. Blocking: on A, **Details** → **Block this person** → the confirmation explains the effect → the conversation shows "You blocked this person" and a banner; **Settings → Blocked users** lists B. Send from B: A does not receive it. **Unblock** → new messages from B arrive again (the one sent while blocked may appear too, as the server re-syncs the room).
+6. One tab per device: open http://localhost:5173 in a second tab: "Already open in another tab" with **Use this tab**. Click it: the second tab shows Chats and the first shows the message instead. Close the second tab and click **Use this tab** in the first.
+7. **Devices & security** on a second device of A (http://third.localhost:5173, restored with the recovery key): **Sign out all other devices** → confirmation → password → "1 other device(s) signed out."; the first device drops to sign-in with "Your session has expired. Sign in again."
+8. Keyboard: Tab from the page start reaches **Skip to content** first; Enter moves focus into the content; after following a settings row the new screen's heading has focus; Escape closes a dialog and returns focus to the button that opened it.
+9. Right-to-left: **Settings → Language → العربية** flips the layout (`dir="rtl"`); navigation, settings rows and the conversation (message bubbles, composer) stay usable; **English** restores it. The choice is not persisted across a reload yet.
+10. Responsive: resize to 360, 768, 1024 and 1440 pixels wide (DevTools device toolbar): no horizontal scrolling, bottom navigation below 1024 and the rail from 1024, the conversation list and conversation side by side from 1024.
+
+### Cross-browser record
+
+| Browser | Version | Platform | Checked by | Date | Result |
+|---|---|---|---|---|---|
+| Chromium (Playwright, headless shell) | 156.0.8078.4 | Windows 11, CI Ubuntu | AI contributor | 2026-10-24 | e2e suite (see STATUS) |
+| Chromium (Claude desktop built-in browser) | — | Windows 11 | AI contributor | 2026-10-24 | manual steps above (see STATUS) |
+| Chrome | — | Windows | owner | — | pending |
+| Edge | — | Windows | owner | — | pending |
+| Android Chrome | — | Android | owner | — | pending |
+| Firefox | — | — | — | — | not verified (no access) |
+| Safari / iOS Safari | — | — | — | — | not verified (no access) |
+
+## 11. Reset everything
 
 ```bash
 pnpm dev:env:reset
@@ -125,7 +166,7 @@ pnpm dev:env:reset
 
 Deletes Synapse data and the MongoDB volume, then re-initialises.
 
-## 11. Environment boundaries
+## 12. Environment boundaries
 
 | `NODE_ENV` / `VITE_APP_ENV` | Behaviour |
 |---|---|
@@ -135,7 +176,7 @@ Deletes Synapse data and the MongoDB volume, then re-initialises.
 
 Production deployment (TLS, PostgreSQL for Synapse, secret management) is documented in later phases; this compose file is for development only.
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 - `docker: command not found`: install Docker Desktop and reopen the terminal.
 - Synapse never becomes healthy: `docker logs cs-synapse`; a wrong `UID/GID` in `infrastructure/.env` makes `/data` unwritable, rerun `pnpm dev:env:reset`.

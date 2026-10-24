@@ -1,88 +1,91 @@
 # Project Status
 
 ## Active phase
-Phase 4 — Complete the web experience (**planning only; no implementation until the owner approves the plan**)
+Phase 4 — Complete the web experience (**implementation complete on local `main`; exit gate presented, awaiting the owner's decision; not pushed**)
 
 ## Last completed milestone
-**Phase 2 complete — exit gate accepted by the owner on 2026-10-23; ADR-0003 Accepted.** CI green on `41491d4`. Phase 1 closed 2026-10-23; Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
-
-**Phase 3 complete — exit gate accepted by the owner on 2026-10-24; ADR-0004 Accepted.** Implemented 2026-10-23 as the seven planned commits plus fixes on local `main` on top of `41491d4`: conversation list and invitations `1648408`, start by identifier `5ae72d5` (+ `36d6ac2` test typing), conversation view with honest states `1dc666d`, pagination and private receipts `a81bc99`, recipient security and decryption explanations `3dd8e64`, verify a conversation partner `b8b1a69`, two-account integration tests and server inspection `7f33c7b`, soft-logout client rebuild `36f0443` (Phase 2 defect), live-sync readiness / invitation dates / load-older `bf05ac6`, verification-request line / history on open / offline start `588efaa`, and documentation `810615d`. **Pushed 2026-10-24**; CI run 40031270158 on `810615d` is green on all four jobs on the first run: checks, secrets-scan, dev-env (API `/ready` 200, PoC 31/31, integration 5 files / 18 tests, inspection 9/9 including "integration room holds encrypted events only", Synapse 1.163.2) and poc-e2ee.
+**Phase 3 complete — exit gate accepted by the owner on 2026-10-24; ADR-0004 Accepted.** CI run 40031270158 green on `810615d`. Phase 2 closed 2026-10-23 (ADR-0003 Accepted); Phase 1 closed 2026-10-23; Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
 
 ## Current task
-Phase 4 plan for owner approval (AGENTS.md step 2), checked against the Phase 4 exit gate in IMPLEMENTATION_PLAN.md. No Phase 4 code until approved.
+Phase 4 exit-gate review. Implemented 2026-10-24 as the eight planned commits plus one fix on local `main` on top of `fb84247`: tab lease `b06c5d7`, settings hub / profile / sign out of other devices `deb69f1`, privacy settings `7ec2fce`, blocking `94f8082`, browser notifications `5d76f2a`, accessibility / responsive / RTL polish with the catalogue export `8318ea0`, narrow-layout and landmark fixes `d559325`, Playwright end-to-end suite `04c2ec7`, documentation (this commit). **Not pushed**: push follows the owner's go-ahead.
 
-## Completed (Phase 3)
-Labels follow AGENTS.md §12. Unit = jsdom/Node without a network; integration = Node against the compose Synapse 1.163.1 (`pnpm test:integration`); manual = built-in browser, two origins (`localhost`, `second.localhost`) as two accounts.
+## Completed (Phase 4)
+Labels follow AGENTS.md §12. Unit = jsdom/Node without a network; integration = Node against the compose Synapse 1.163.x (`pnpm test:integration`); e2e = Playwright Chromium against the production build and the compose Synapse (`pnpm test:e2e`); manual = built-in browser (Chromium), accounts `p4-alice` on second.localhost and `p4-bob` on third.localhost (throwaway).
 
 | Deliverable | Status | Evidence |
 |---|---|---|
-| Direct-conversation model from SDK state (m.direct, `is_direct`), list with previews, unread counts, search, invitations with Accept/Decline (never auto-joined), sync-error banner | Verified | unit (model, screen); integration (invite accepted and recorded on both sides); manual |
-| Start a conversation by exact identifier: local username or Matrix ID, invalid/self rejected without a request, profile lookup, display name shown as not proof of identity, existing room reused, encrypted invite-only room created | Verified | unit; integration; manual |
-| Conversation view: states from SDK send state (Pending / Sent / Not sent with Retry and Delete), date separators, undecryptable and unsupported placeholders, system lines, Enter/Shift+Enter composer, drafts | Verified | unit (every `EventStatus`, retry resends the same event, delete); integration (accepted sends); manual (Sending… → Sent both ways) |
-| No plaintext fallback: `sendText` refuses unless the room has an encryption state event and the backend reports encryption enabled; composer disabled otherwise; rooms created encrypted | Verified | unit; integration (unencrypted room refused, no message event stored; `fetchRoomEvent` shows `m.room.encrypted` without body); server inspection with the run's nonce (local: integration room 36 encrypted / 0 plaintext events, nonce absent from the DB file) |
-| History: `scrollback` while a back token exists and the creation event is not loaded; one page auto-loaded on open when few messages are loaded; scroll kept in place | Verified | unit; integration (30 messages paged in order, no duplicates, from a fresh sync); manual (full history after reload) |
-| Private read receipts (`m.read.private` only, after the conversation is open and visible) | Verified | unit (never `m.read`); integration (reader's unread count drops; sender sees no receipt) |
-| Recipient security: identity verified / changed / not verified and devices from SDK state; header badges; identity-change banner; details screen with explanations and Leave | Verified | unit; integration (unverified second device still receives; late device sees an undecryptable placeholder with a historical-message code); manual (Unverified devices → Identity verified; device Verified; Leave) |
-| Verify a conversation partner by in-room SAS; incoming requests as notices; request shown as a system line | Verified | unit; manual (seven identical emoji on both accounts, Identity verified on both; details updated) |
-| Offline: message stays Pending while the server is unreachable and becomes Sent after reconnect, received once; reconnection and replayed transaction ids create no duplicates | Verified | integration (sync failing then resumed; replayed txnId → same event); manual (Synapse stopped and restarted) |
-| Soft logout rebuilds the client on the same stores (Phase 2 defect: sync could not resume after a token refresh with crypto) | Verified | integration (fake-indexeddb stores, 10 s tokens: identity intact, sync running, encrypted send after rebuild); unit |
-| Readiness waits for the first live sync; invitations dated by their membership event; offline start uses cached readiness | Verified | unit; manual (reload after setup lands on Chats; invitation list no longer crashes) |
-| Integration harness: proactive token refresh for long-lived test clients under CI's 10 s lifetime; inspector `--nonce-file`; CI dev-env passes the nonce | Verified in CI | run 40031270158: integration `Test Files 5 passed (5); Tests 18 passed (18)`, inspection PASS=9 FAIL=0 |
-| ADR-0004, THREAT_MODEL (TM-03, TM-04, TM-13, TM-20; soft-logout defect), ADR-0003 D4 amendment, runbook §9 | Implemented | `docs/architecture/ADR-0004-direct-messaging.md` (Status: Proposed) |
+| One active tab per device: Web Locks lease, "Already open in another tab" with take-over, losing tab stops without clearing stores, release on sign-out (ADR-0005 D1, TM-26) | Verified | unit (first wins, second blocked, take-over, release); e2e (two pages, take-over both ways); manual (both directions) |
+| Settings hub with Profile, Privacy & notifications, Blocked users, Devices & security, Privacy notes, theme, language, sign out | Verified | unit; e2e axe; manual |
+| Profile: display name validated (1–100 chars) and saved through the Matrix profile API; identifier shown as unchangeable | Verified | unit; integration (round-trip); e2e; manual (B's list shows "Alice P4" after the change) |
+| Sign out all other devices under UIA with confirmation and password; the revoked device lands on sign-in with "Your session has expired" | Verified | integration (other devices deleted, current remains); e2e (revoked device drops to sign-in) |
+| Privacy settings in account data `org.cs.web.settings` with safe parsing and defaults; public read receipts opt-in ("Read by <name>"); presence follows the setting; other person's presence in details | Verified | unit (parsing never trusts shapes; receipt type by setting; read position); integration (public receipt only when sharing is on; presence offline when off); e2e (setting persists across reload); manual (B shares → A sees "Read by p4-bob"; B stops sharing presence → A's details show "Last active … ago" instead of Online) |
+| Blocking through `m.ignored_user_list`: Block in details with an honest confirmation, blocked banner, Blocked users list with Unblock, invitations from blocked users hidden | Verified | unit; integration (blocked user's message not delivered; delivery resumes after unblock); e2e; manual (B's message while blocked never reached A; "after unblock" did) |
+| Browser notifications: generic text only, hidden tab only, live events only, once per event, click opens the conversation; permission asked from a button and shown apart from the setting (TM-12) | Verified (logic); **Blocked (manual display)** | unit (text never contains the body; hidden/visible; off; decryption wait; dedupe); screen test through the shell with a fake Notification; e2e permission row. The built-in browser and headless Chromium report the permission as blocked, so the OS-level notification was not observed; owner to check in Chrome (runbook §10 step 4) |
+| Accessibility and keyboard: focus to the new screen's heading, focus returned on dialog close, localized skip link first in tab order, reduced motion, `dir="auto"` text, locale-aware dates | Verified | screen tests (focus); e2e axe on 22 screens with no serious or critical findings (recorded moderate: none after the landmark fix); keyboard-only path; manual (RTL layout under the Arabic locale, no overflow) |
+| Responsive: 360, 768, 1024, 1440 px without horizontal overflow; narrow-phone header wrap; New conversation reachable below the desktop breakpoint (defect found manually and fixed `d559325`) | Verified | e2e screenshots at four viewports; manual at 375×812 |
+| States audit (loading skeletons, empty, error, offline per screen; ADR-0005 §3); last route stub removed | Implemented; screen states Tested | unit per screen; e2e |
+| Localization: catalogue export `pnpm i18n:extract` → `apps/web/i18n/en.json` (325 strings); no machine-drafted Bengali/Arabic | Verified | file generated and committed; e2e RTL check |
+| End-to-end suite in CI dev-env (Chromium install, run after integration, annotations, evidence upload) | Implemented; **not yet run in CI** (not pushed) | `.github/workflows/ci.yml` |
+| ADR-0005, THREAT_MODEL (TM-11 note, TM-12 Verified for web, TM-13 ignore list, TM-25 note, new TM-26), runbook §10 with cross-browser record, this status | Implemented | `docs/architecture/ADR-0005-web-experience.md` (Status: Proposed) |
 
 ## Verification
-Executed 2026-10-23 on Windows 11, Node 22, pnpm 12, TypeScript 6.0.3, Docker Desktop (Synapse 1.163.1, MongoDB 7):
+Executed 2026-10-24 on Windows 11, Node 22.20, pnpm 12.14, TypeScript 6.0.3, Docker Desktop (Synapse 1.163.x, MongoDB 7), Playwright 1.64.1 with Chromium headless shell 156:
 
-- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build` — pass at the tip.
-- `pnpm test` — 31 files, **278 tests pass**; 5 integration files (18 tests) skipped offline by design. One earlier full run had a single transient failure that two immediate reruns did not reproduce (not identified; noted as a flake to watch in CI).
-- `HOMESERVER_URL=http://localhost:8008 ACCESS_TOKEN_LIFETIME_MS=10000 pnpm test:integration` with the local Synapse at a 10 s access-token lifetime (restored to 5 m afterwards) — 5 files, **18 tests pass** (about 47 s): Phase 2 (9) and Phase 3 (messaging 8, session soft logout 1).
-- `pnpm poc` 31/31, then `pnpm poc:inspect -- --db <copy> --nonce-file apps/web/test/integration/last-run.json` — 8/8 including "integration room holds encrypted events only — 45 events, 36 m.room.encrypted, 0 m.room.message".
-- Manual (runbook §9, accounts `p3-alice` on localhost and `p3-bob` on second.localhost, throwaway): start by username with display-name check; invitation accepted; messages both ways Sending… → Sent and decrypted on the other side; details show identity and device state; in-room verification with identical emoji → Identity verified on both and the device Verified; Synapse stopped: message Pending, after restart Sent and received exactly once; Leave on B → A shows "Left the conversation." and B's list is empty; reload after setup lands on Chats; history auto-loaded after reload. Not observed in the manual window: the list's sync-error banner (the long poll had not yet failed when checked; unit and integration cover the state), the mismatch path and a third device (unit and integration cover both).
-- CI: run 40031270158 (`810615d`) green on all four jobs; dev-env annotations: integration 5 files / 18 tests passed, inspection 9/9, PoC 31/31, Synapse 1.163.2. https://github.com/MSabbirHossen/communication-system/actions/runs/40031270158
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck` (now also `tsconfig.e2e.json`), `pnpm build` — pass at the tip.
+- `pnpm --filter @cs/web test` — 36 files, **261 tests pass** (Phase 3 tip: 236).
+- `pnpm test` (whole workspace, integration skipped offline by design) — 42 files pass, 8 skipped; **335 tests pass, 22 skipped**.
+- `HOMESERVER_URL=http://localhost:8008 pnpm test:integration` — final run at the tip: 7 files pass, 1 skipped (the expiry file, gated on `ACCESS_TOKEN_LIFETIME_MS`); **20 tests pass, 2 skipped**, about 2 min; the Phase 4 files (`profile-devices`, `privacy`, `blocking`) are included. One full-suite run earlier in the day had the Phase 3 messaging test "warns about the recipient's unverified devices" time out while the blocking test ran in parallel; it passed on its own immediately afterwards (flake under parallel load, noted to watch in CI).
+- `pnpm test:e2e` — **4 passed** in 1.3 min against the production build and the compose Synapse (journeys 35.8 s, session 10.2 s, accessibility public 5.8 s and signed-in 24.5 s); axe: no serious or critical findings on any visited screen; artifacts in `apps/web/e2e-results`.
+- Manual (runbook §10, built-in browser): settings hub; display name change seen by the other account; read receipts off by default then "Read by p4-bob" once B shared; presence "Last active … ago" after B stopped sharing; block confirmation and banner, Blocked users list, message sent while blocked not delivered, delivery after unblock; second tab blocked and take-over in both directions; Arabic locale flips the layout without overflow; 375 px phone layout without overflow (header wrap defect found and fixed); the "New conversation" dead end below the desktop breakpoint found and fixed. Not observed: an OS notification (permission blocked in the built-in browser) and a third device signing out the others (covered by the e2e suite and the integration test).
+- Cross-browser record (runbook §10): Chromium by the AI contributor (e2e + built-in browser); Chrome, Edge and Android Chrome entries **pending the owner**; Firefox and Safari not verified.
+- CI: **not run** for Phase 4 yet (nothing pushed).
 
-## Phase 3 exit gate (IMPLEMENTATION_PLAN.md)
+## Phase 4 exit gate (IMPLEMENTATION_PLAN.md)
 | Criterion | Evidence |
 |---|---|
-| Two separate accounts can exchange encrypted messages | integration + manual |
-| The recipient can decrypt messages on an authorized device | integration (first device) + manual |
-| Server-side inspection confirms ordinary message content remains encrypted | `fetchRoomEvent` ciphertext (integration) + inspector with the integration nonce (local and CI run 40031270158) |
-| Reconnection and synchronization do not create unintended duplicates | integration (offline catch-up, replayed txnId, pagination) + manual offline send |
-| Pagination and error states work | integration (paging) + unit/screen (loading, empty, offline, sync error, failed send, not found) + manual |
-| Unverified-device and undecryptable-message cases are tested | integration (unverified second device; late device undecryptable) + unit (wording per code) |
-| No plaintext fallback is possible | unit (refusal, disabled composer) + integration (unencrypted room refused before any request) + inspection |
+| Primary user journeys work from sign-in to encrypted conversation | e2e journeys spec (register → setup → start by identifier → accept → exchange → details) + manual |
+| Responsive layouts remain usable at supported viewport sizes | e2e at 360/768/1024/1440 with screenshots and overflow checks + manual 375 px; owner's Android Chrome check pending |
+| Session restoration and sign-out behave correctly | e2e (reload restores; sign out; revoked device → sign-in with reason) + existing unit/integration |
+| Keyboard and accessibility checks pass against the project's target | axe WCAG 2.x A/AA on every visited screen (no serious/critical) + keyboard-only e2e path + focus screen tests |
+| The production web build passes | e2e runs against `vite preview` of `pnpm build`; `checks` job builds |
+| Manual cross-browser verification is recorded | runbook §10 record: Chromium done; Chrome/Edge/Android Chrome rows await the owner |
 
-Gate **closed 2026-10-24**: evidence accepted by the owner; ADR-0004 Accepted.
+Gate **open**: evidence presented for the owner's decision; the cross-browser rows for the owner's browsers and the first CI run are outstanding.
 
 ## Blockers and risks
 - **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5).
 - **R5 — Toolchain pins** (TypeScript 6.0.3; pnpm `allowBuilds`).
-- **R6 — Web key storage is origin-scoped IndexedDB** (TM-11); production CSP Phase 4/7.
+- **R6 — Web key storage is origin-scoped IndexedDB** (TM-11); HTTP-header CSP is Phase 7.
 - **R7 — Registration open on the dev homeserver only**; gating is Phase 7/8.
-- **R8 — Pending (unsent) messages live in memory**: a full reload while offline loses a message that was still Pending (the SDK can persist the queue with detached pending-event ordering; deferred).
-- **R9 — Recipient's unverified devices read new messages** until the user acts on the warning (owner decision, ADR-0004 D7; disclosed).
-- Two direct rooms can exist with the same person after simultaneous starts; both are listed.
-- A reload during the first five minutes after setup used to return to the setup screen (fixed `bf05ac6`); the SDK's sync cache is saved periodically, so other cache-age effects may surface in Phase 4 testing.
+- **R8 — Pending (unsent) messages live in memory** (deferred to Phase 7 reliability).
+- **R9 — Recipient's unverified devices read new messages** until the user acts (ADR-0004 D7).
+- **R10 — Settings are client-honoured, not server-enforced** (except blocking): another client could ignore them; the privacy screen says so (ADR-0005 D2).
+- **R11 — Without the Web Locks API a single tab is assumed** (all supported browsers have it; documented gap, TM-26).
+- The locale choice is not persisted across reloads; English strings under the Arabic locale show sentence punctuation on the left (expected until translated text exists).
+- After an unblock the homeserver re-syncs the room: the other person's "Read by" marker reappears on their next read, and a message they sent while blocked may or may not surface (integration: it did; manual: it did not, its key having been shared while ignored).
+- Phase 3 messaging integration test flaked once under parallel load (passes alone).
 
 ## Deferred
 | Item | Reason | Risk while deferred |
 |---|---|---|
-| Persisted send queue across reloads | Needs the SDK's detached pending-event ordering and store support; Phase 4 | Medium (lost offline message after a reload) |
-| Public read receipts, preview setting, presence, typing | Privacy settings (Phase 4/6) | Low |
-| Directory search with discoverability controls | Phase 6 | Low |
-| Blocking and reporting from conversation details | Phase 6 | Medium before real users |
-| Media, edits, deletions, reactions, group rooms | Later releases (PRD §6.2) | n/a |
-| Playwright browser end-to-end tests | Phase 4 | Low |
+| Persist the locale choice; translated Bengali/Arabic tables | Translators work from `apps/web/i18n/en.json` (owner decision) | Low |
+| Persisted send queue across reloads | Phase 7 reliability | Medium (lost offline message after a reload) |
+| Avatar upload and media | Later releases (PRD §6.2) | n/a |
+| Discoverability, username claims, reports, moderation, account deletion | Phase 6 (application API) | Medium before real users |
+| Push notifications and push gateway | Phase 5 | Low |
+| HTTP-header CSP and security headers | Phase 7 | Medium (TM-11) |
+| Firefox and Safari verification | No access | Low |
 | Native Android/iOS projects and device spike | Phase 5 (ADR-0001 C2) | Medium |
 
-## Decisions recorded 2026-10-23
-- **Read receipts private by default** (owner): `m.read.private` only; no Read state shown (ADR-0004 D5).
-- **Unverified devices receive messages, with warnings** (owner): no blocklisting (ADR-0004 D7).
-- **Conversations start from an exact identifier only** (owner): no directory search until Phase 6 (ADR-0004 D3).
-- **Invitations are never auto-joined** (ADR-0004 D2); **one room per pair, encrypted from creation** (D1); **states from the SDK only, no Delivered** (D4).
-- **Soft logout rebuilds the client on the same stores** (ADR-0004 D11, amends ADR-0003 D4).
+## Decisions recorded 2026-10-24
+- **Settings data Matrix-native in Phase 4** (owner): profile API, ignore list, `org.cs.web.settings` account data (ADR-0005 D2).
+- **Localization: RTL plumbing and catalogue export, no machine-drafted text** (owner) (ADR-0005 D8).
+- **Browser notifications: generic text only, behind a setting** (owner) (ADR-0005 D5).
+- **Cross-browser record: Chrome/Edge and Android Chrome by the owner, Chromium by the AI contributor** (owner) (ADR-0005 D10).
+- **One active tab per device** (ADR-0005 D1); **public read receipts opt-in** (D3); **blocking is the homeserver's ignore list, explained honestly** (D4); **WCAG 2.2 AA target with axe gating** (D7); **e2e against the production build** (D9).
 
 ## Next approved action
-Produce the Phase 4 plan (plan mode, no code) and present it for approval. Implementation starts only after the owner approves the plan.
+Owner review of the Phase 4 exit gate: record the Chrome/Edge and Android Chrome checks in runbook §10, then give the go-ahead to push `main` so the CI dev-env job runs the end-to-end suite. No Phase 5 work starts before the gate closes.
 
 ## Last updated
 2026-10-24
