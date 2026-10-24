@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useSyncExternalStore, type ReactN
 import { Navigate, Outlet, useLocation } from "react-router";
 import type { SessionController, SessionState } from "./controller";
 import { t, type MessageKey } from "../i18n";
+import { OtherTabScreen } from "../screens/OtherTab";
 
 const Ctx = createContext<SessionController | null>(null);
 
@@ -72,6 +73,7 @@ export function RequireSession() {
   const location = useLocation();
   if (status === "booting" || status === "starting") return <LoadingScreen />;
   if (status === "error") return <SessionErrorScreen />;
+  if (status === "blocked_by_other_tab") return <OtherTabScreen />;
   if (status === "crypto_setup") return <Navigate to="/setup" replace />;
   if (status !== "ready")
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
@@ -83,6 +85,7 @@ export function RequireClient() {
   const { status } = useSession();
   if (status === "booting" || status === "starting") return <LoadingScreen />;
   if (status === "error") return <SessionErrorScreen />;
+  if (status === "blocked_by_other_tab") return <OtherTabScreen />;
   if (status !== "ready" && status !== "crypto_setup") return <Navigate to="/login" replace />;
   return <Outlet />;
 }
@@ -92,6 +95,7 @@ export function RedirectIfSignedIn({ children }: { children: ReactNode }) {
   const { status } = useSession();
   if (status === "booting" || status === "starting") return <LoadingScreen />;
   if (status === "error") return <SessionErrorScreen />;
+  if (status === "blocked_by_other_tab") return <OtherTabScreen />;
   if (status === "crypto_setup") return <Navigate to="/setup" replace />;
   if (status === "ready") return <Navigate to="/chats" replace />;
   return <>{children}</>;

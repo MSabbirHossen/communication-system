@@ -137,6 +137,11 @@ const en = {
   "error.title": "Something went wrong",
   "error.body": "The app hit an unexpected error. Reload to try again.",
   "error.reload": "Reload",
+  "tabs.title": "Already open in another tab",
+  "tabs.body":
+    "This account is open in another browser tab or window. To keep your encryption keys consistent, only one tab can run at a time.",
+  "tabs.useThis": "Use this tab",
+  "tabs.note": "The other tab will show this message instead.",
   "notFound.title": "Page not found",
   "notFound.back": "Back to chats",
   loading: "Loading…",

@@ -50,6 +50,9 @@ export const silentLogger = () => {
   return l;
 };
 
+/** A lease this tab holds (the default in tests). */
+export const heldLease = () => ({ held: true, takeOver: vi.fn(async () => {}), release: vi.fn() });
+
 /** Faked dependencies; override any to script a scenario. */
 export function fakeDeps(overrides: Partial<SessionDeps> = {}): SessionDeps {
   const deps: SessionDeps = {
@@ -78,6 +81,7 @@ export function fakeDeps(overrides: Partial<SessionDeps> = {}): SessionDeps {
     applyAccessToken: vi.fn(),
     onSessionLoggedOut: vi.fn(() => () => {}),
     createMatrixClient: vi.fn(async () => fakeClient()),
+    acquireTabLease: vi.fn(async () => heldLease()),
     startSync: vi.fn(async () => {}),
     stopAndClearClient: vi.fn(async () => {}),
     ...overrides,

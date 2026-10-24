@@ -13,6 +13,7 @@ import type { SecretStorageKeyHolder } from "../matrix/recoveryKey";
 import { InvalidRecoveryKeyError } from "../matrix/recoveryKey";
 import type { StoredSession } from "../matrix/sessionStore";
 import { UiaCancelled } from "../matrix/uia";
+import type { TabLease } from "./tabLease";
 import type { WebLogger } from "../lib/logger";
 import { Deferred } from "./deferred";
 
@@ -23,6 +24,7 @@ export type SessionStatus =
   | "starting" // client created, sync starting
   | "crypto_setup" // signed in; secure device setup needs the user (APP_FLOW 5.1 E/F)
   | "ready" // client syncing, encryption ready; app usable
+  | "blocked_by_other_tab" // another tab holds this device's lease (ADR-0005)
   | "error"; // unrecoverable startup error (e.g. storage unavailable)
 
 /** What the secure-device-setup screen should show. */
@@ -70,6 +72,8 @@ export interface SessionDeps {
     holder: SecretStorageKeyHolder,
     prompts: SetupPrompts,
   ): Promise<SetupOutcome>;
+  /** One active tab per device; absent in tests means "always held". */
+  acquireTabLease?(deviceId: string, onLost: () => void): Promise<TabLease>;
   /** Injectable clock for tests. */
   now?: () => number;
 }
@@ -98,6 +102,7 @@ export class SessionController {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private refreshing: Promise<boolean> | null = null;
   private unsubscribeLoggedOut: (() => void) | null = null;
+  private lease: TabLease | null = null;
 
   constructor(private readonly deps: SessionDeps) {}
 
@@ -331,6 +336,45 @@ export class SessionController {
     this.deps.logger.info("client rebuilt after soft logout", { deviceId: session.deviceId });
   }
 
+  // --- one active tab per device (ADR-0005) ---------------------------------------
+  private async ensureLease(deviceId: string): Promise<boolean> {
+    if (this.lease?.held) return true;
+    const acquire =
+      this.deps.acquireTabLease ??
+      (async (): Promise<TabLease> => ({
+        held: true,
+        takeOver: async () => {},
+        release: () => {},
+      }));
+    this.lease = await acquire(deviceId, () => this.onLeaseLost());
+    return this.lease.held;
+  }
+
+  /** Another tab took the lease: stop this tab's client without touching the stores. */
+  private onLeaseLost(): void {
+    const { client } = this.state;
+    this.clearRefreshTimer();
+    this.unsubscribeLoggedOut?.();
+    this.unsubscribeLoggedOut = null;
+    this.abortPrompts();
+    client?.stopClient();
+    this.deps.logger.info("lease taken by another tab; client stopped");
+    this.set({ status: "blocked_by_other_tab", client: null, setup: { phase: "idle" } });
+  }
+
+  /** The user chose to use this tab: take the lease and start the stored session here. */
+  async takeOverTab(): Promise<void> {
+    const { session } = this.state;
+    if (!this.lease || !session || this.state.status !== "blocked_by_other_tab") return;
+    await this.lease.takeOver();
+    if (!this.lease.held) return;
+    try {
+      await this.start(session);
+    } catch (err) {
+      await this.failStart(err, "session start failed after taking over the tab");
+    }
+  }
+
   /** The SDK reports the token is no longer accepted. */
   private async handleLoggedOut(info: { softLogout: boolean }): Promise<void> {
     const { client, session } = this.state;
@@ -367,6 +411,14 @@ export class SessionController {
   private async start(stored: StoredSession): Promise<void> {
     let session = stored;
     this.set({ status: "starting", session, error: null, setup: { phase: "idle" } });
+
+    if (!(await this.ensureLease(session.deviceId))) {
+      this.deps.logger.info("another tab holds this device; waiting for take-over", {
+        deviceId: session.deviceId,
+      });
+      this.set({ status: "blocked_by_other_tab", client: null });
+      return;
+    }
 
     // An access token about to expire (or already expired) is refreshed before use.
     if (session.refreshToken && this.isExpiringSoon(session)) {
@@ -442,6 +494,8 @@ export class SessionController {
     if (client) await this.deps.stopAndClearClient(client);
     await this.deps.clearSession();
     this.deps.keyHolder.clear();
+    this.lease?.release();
+    this.lease = null;
     this.set({
       status: "signed_out",
       session: null,

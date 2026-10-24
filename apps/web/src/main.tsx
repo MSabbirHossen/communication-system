@@ -18,6 +18,7 @@ import { SecretStorageKeyHolder } from "./matrix/recoveryKey";
 import { clearSession, loadSession, saveSession } from "./matrix/sessionStore";
 import { createAppRouter } from "./routes";
 import { SessionController } from "./session/controller";
+import { acquireTabLease } from "./session/tabLease";
 import { SessionProvider } from "./session/SessionProvider";
 import { SecurityProvider, realSecurityDeps } from "./session/security";
 import { ErrorBoundary } from "./shell/ErrorBoundary";
@@ -53,6 +54,7 @@ try {
       }),
     startSync,
     stopAndClearClient,
+    acquireTabLease: (deviceId, onLost) => acquireTabLease(deviceId, onLost),
   });
 
   root.render(
