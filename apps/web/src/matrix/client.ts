@@ -58,7 +58,10 @@ export async function createMatrixClient(
     userId: session.userId,
     deviceId: session.deviceId,
     accessToken: session.accessToken,
-    ...(session.refreshToken ? { refreshToken: session.refreshToken } : {}),
+    // The refresh token is deliberately NOT handed to the SDK: the session controller is
+    // the only refresher (proactive timer, soft-logout rebuild). Two refreshers rotating the
+    // same single-use token diverge and one of them gets signed out (found under CI's 10 s
+    // token lifetime, ADR-0005 D11). The SDK reports an expired token as a soft logout.
     onTokenRefresh: (t) =>
       opts.onTokenRefresh({
         accessToken: t.accessToken,

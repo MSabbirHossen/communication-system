@@ -90,7 +90,8 @@ describe("createMatrixClient", () => {
     expect(args.userId).toBe("@alice:localhost");
     expect(args.deviceId).toBe("DEV1");
     expect(args.accessToken).toBe("syt_access");
-    expect(args.refreshToken).toBe("syr_refresh");
+    // The controller alone refreshes tokens; the SDK never gets the refresh token.
+    expect(args.refreshToken).toBeUndefined();
     expect(args.useAuthorizationHeader).toBe(true);
     expect((args.store as { opts: { dbName: string } }).opts.dbName).toBe("cs-sync-DEV1");
     expect(mocks.initRustCrypto).toHaveBeenCalledWith({ cryptoDatabasePrefix: "cs-crypto-DEV1" });

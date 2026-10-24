@@ -280,6 +280,14 @@ export class SessionController {
     } catch (err) {
       const error = err instanceof AuthFailure ? err.error : toAuthError(err);
       if (error.code === "session_expired" || error.code === "invalid_credentials") {
+        const rotated = await this.rotatedByOtherTab(current);
+        if (rotated) {
+          this.deps.logger.info("adopting the token pair another tab rotated");
+          if (this.state.client) this.deps.applyAccessToken(this.state.client, rotated.accessToken);
+          this.set({ session: rotated });
+          this.scheduleRefresh();
+          return true;
+        }
         this.deps.logger.warn("refresh token rejected; signing out", { code: error.code });
         await this.dropSession({ code: "session_expired", detail: error.detail });
         return false;
@@ -289,6 +297,19 @@ export class SessionController {
       this.refreshTimer = setTimeout(() => void this.refreshNow(), REFRESH_RETRY_MS);
       return false;
     }
+  }
+
+  /**
+   * Refresh tokens are single-use and the session store is shared by every tab of this
+   * device: another tab may have rotated the pair since this tab last read it. Returns
+   * the stored session when it carries a different pair, else null.
+   */
+  private async rotatedByOtherTab(current: StoredSession): Promise<StoredSession | null> {
+    const stored = await this.deps.loadSession().catch(() => null);
+    if (!stored || stored.deviceId !== current.deviceId) return null;
+    if (stored.refreshToken === current.refreshToken && stored.accessToken === current.accessToken)
+      return null;
+    return stored;
   }
 
   private scheduleRefresh(): void {
@@ -368,8 +389,10 @@ export class SessionController {
     if (!this.lease || !session || this.state.status !== "blocked_by_other_tab") return;
     await this.lease.takeOver();
     if (!this.lease.held) return;
+    // The other tab kept refreshing while this one waited; its last saved pair is the live one.
+    const latest = (await this.rotatedByOtherTab(session)) ?? session;
     try {
-      await this.start(session);
+      await this.start(latest);
     } catch (err) {
       await this.failStart(err, "session start failed after taking over the tab");
     }
@@ -429,10 +452,15 @@ export class SessionController {
       } catch (err) {
         const error = err instanceof AuthFailure ? err.error : toAuthError(err);
         if (error.code === "session_expired" || error.code === "invalid_credentials") {
-          await this.dropSession({ code: "session_expired", detail: error.detail });
-          return;
-        }
-        throw err; // network: surface as a start error; the stored session stays
+          const rotated = await this.rotatedByOtherTab(session);
+          if (!rotated) {
+            await this.dropSession({ code: "session_expired", detail: error.detail });
+            return;
+          }
+          this.deps.logger.info("starting with the token pair another tab rotated");
+          session = rotated;
+          this.set({ session });
+        } else throw err; // network: surface as a start error; the stored session stays
       }
     }
 

@@ -53,6 +53,25 @@ describe("one active tab per device", () => {
     expect(c.getSnapshot().status).toBe("ready");
   });
 
+  it("taking over uses the token pair the other tab saved while this tab waited", async () => {
+    const { acquire } = contestedLease();
+    const rotated = { ...testSession, accessToken: "syt_rotated", refreshToken: "syr_rotated" };
+    let reads = 0;
+    const deps = fakeDeps({
+      loadSession: vi.fn(async () => (reads++ === 0 ? testSession : rotated)),
+      acquireTabLease: acquire,
+    });
+    const c = new SessionController(deps);
+    await c.boot();
+    expect(c.getSnapshot().session?.accessToken).toBe(testSession.accessToken);
+    await c.takeOverTab();
+    expect(deps.createMatrixClient).toHaveBeenCalledWith(
+      expect.objectContaining({ session: expect.objectContaining({ accessToken: "syt_rotated" }) }),
+    );
+    expect(c.getSnapshot().status).toBe("ready");
+    expect(c.getSnapshot().session?.refreshToken).toBe("syr_rotated");
+  });
+
   it("losing the lease stops the client without clearing stores and blocks this tab", async () => {
     const { lease, acquire, lose } = contestedLease();
     lease.held = true;

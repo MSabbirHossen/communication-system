@@ -72,6 +72,47 @@ describe("token refresh and session expiry", () => {
     expect(deps.createMatrixClient).not.toHaveBeenCalled();
   });
 
+  it("adopts the pair another tab rotated when its own refresh token is rejected", async () => {
+    const rotated = {
+      ...withExpiry(300_000),
+      accessToken: "syt_rotated",
+      refreshToken: "syr_rotated",
+    };
+    let reads = 0;
+    const deps = fakeDeps({
+      loadSession: vi.fn(async () => (reads++ === 0 ? withExpiry(300_000) : rotated)),
+      refreshSession: vi.fn(async () => {
+        throw new AuthFailure({ code: "session_expired" });
+      }),
+      now: () => Date.now(),
+    });
+    const c = new SessionController(deps);
+    await c.boot();
+    expect(c.getSnapshot().status).toBe("ready");
+    expect(await c.refreshNow()).toBe(true);
+    expect(deps.applyAccessToken).toHaveBeenCalledWith(expect.anything(), "syt_rotated");
+    expect(c.getSnapshot()).toMatchObject({
+      status: "ready",
+      session: expect.objectContaining({ refreshToken: "syr_rotated" }),
+    });
+    expect(deps.clearSession).not.toHaveBeenCalled();
+  });
+
+  it("still signs out when the store holds the same rejected pair", async () => {
+    const deps = fakeDeps({
+      loadSession: vi.fn(async () => withExpiry(300_000)),
+      refreshSession: vi.fn(async () => {
+        throw new AuthFailure({ code: "session_expired" });
+      }),
+      now: () => Date.now(),
+    });
+    const c = new SessionController(deps);
+    await c.boot();
+    expect(await c.refreshNow()).toBe(false);
+    expect(c.getSnapshot()).toMatchObject({ status: "signed_out", session: null });
+    expect(deps.clearSession).toHaveBeenCalled();
+  });
+
   it("retries later when a proactive refresh fails on the network", async () => {
     let calls = 0;
     const deps = fakeDeps({

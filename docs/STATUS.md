@@ -1,13 +1,13 @@
 # Project Status
 
 ## Active phase
-Phase 4 — Complete the web experience (**implementation complete on local `main`; exit gate presented, awaiting the owner's decision; not pushed**)
+Phase 4 — Complete the web experience (**implementation complete and pushed; exit gate presented, awaiting the owner's decision and the green CI run**)
 
 ## Last completed milestone
 **Phase 3 complete — exit gate accepted by the owner on 2026-10-24; ADR-0004 Accepted.** CI run 40031270158 green on `810615d`. Phase 2 closed 2026-10-23 (ADR-0003 Accepted); Phase 1 closed 2026-10-23; Phase 0 approved with conditions 2026-10-20 (ADR-0001 Accepted).
 
 ## Current task
-Phase 4 exit-gate review. Implemented 2026-10-24 as the eight planned commits plus one fix on local `main` on top of `fb84247`: tab lease `b06c5d7`, settings hub / profile / sign out of other devices `deb69f1`, privacy settings `7ec2fce`, blocking `94f8082`, browser notifications `5d76f2a`, accessibility / responsive / RTL polish with the catalogue export `8318ea0`, narrow-layout and landmark fixes `d559325`, Playwright end-to-end suite `04c2ec7`, documentation (this commit). **Not pushed**: push follows the owner's go-ahead.
+Phase 4 exit-gate review. Implemented 2026-10-24 as the eight planned commits plus one fix on local `main` on top of `fb84247`: tab lease `b06c5d7`, settings hub / profile / sign out of other devices `deb69f1`, privacy settings `7ec2fce`, blocking `94f8082`, browser notifications `5d76f2a`, accessibility / responsive / RTL polish with the catalogue export `8318ea0`, narrow-layout and landmark fixes `d559325`, Playwright end-to-end suite `04c2ec7`, documentation `6e3d80d`. Pushed 2026-10-24 on the owner's go-ahead; CI run 40097078795 had checks, secrets-scan and poc-e2ee green and the dev-env job green through API readiness, PoC 31/31 and integration 8 files / 22 tests, but the new e2e step failed 1 of 4 (the one-tab take-over step). Root cause found and fixed in the follow-up commit (see Verification): under CI's 10 s token lifetime the SDK and the controller both rotated the single-use refresh token and the device was signed out.
 
 ## Completed (Phase 4)
 Labels follow AGENTS.md §12. Unit = jsdom/Node without a network; integration = Node against the compose Synapse 1.163.x (`pnpm test:integration`); e2e = Playwright Chromium against the production build and the compose Synapse (`pnpm test:e2e`); manual = built-in browser (Chromium), accounts `p4-alice` on second.localhost and `p4-bob` on third.localhost (throwaway).
@@ -25,7 +25,7 @@ Labels follow AGENTS.md §12. Unit = jsdom/Node without a network; integration =
 | Responsive: 360, 768, 1024, 1440 px without horizontal overflow; narrow-phone header wrap; New conversation reachable below the desktop breakpoint (defect found manually and fixed `d559325`) | Verified | e2e screenshots at four viewports; manual at 375×812 |
 | States audit (loading skeletons, empty, error, offline per screen; ADR-0005 §3); last route stub removed | Implemented; screen states Tested | unit per screen; e2e |
 | Localization: catalogue export `pnpm i18n:extract` → `apps/web/i18n/en.json` (325 strings); no machine-drafted Bengali/Arabic | Verified | file generated and committed; e2e RTL check |
-| End-to-end suite in CI dev-env (Chromium install, run after integration, annotations, evidence upload) | Implemented; **not yet run in CI** (not pushed) | `.github/workflows/ci.yml` |
+| End-to-end suite in CI dev-env (Chromium install, run after integration, annotations, evidence upload) | Verified (step runs, annotations and artifact published); first run exposed the refresh defect | run 40097078795; fix run pending |
 | ADR-0005, THREAT_MODEL (TM-11 note, TM-12 Verified for web, TM-13 ignore list, TM-25 note, new TM-26), runbook §10 with cross-browser record, this status | Implemented | `docs/architecture/ADR-0005-web-experience.md` (Status: Proposed) |
 
 ## Verification
@@ -35,10 +35,11 @@ Executed 2026-10-24 on Windows 11, Node 22.20, pnpm 12.14, TypeScript 6.0.3, Doc
 - `pnpm --filter @cs/web test` — 36 files, **261 tests pass** (Phase 3 tip: 236).
 - `pnpm test` (whole workspace, integration skipped offline by design) — 42 files pass, 8 skipped; **335 tests pass, 22 skipped**.
 - `HOMESERVER_URL=http://localhost:8008 pnpm test:integration` — final run at the tip: 7 files pass, 1 skipped (the expiry file, gated on `ACCESS_TOKEN_LIFETIME_MS`); **20 tests pass, 2 skipped**, about 2 min; the Phase 4 files (`profile-devices`, `privacy`, `blocking`) are included. One full-suite run earlier in the day had the Phase 3 messaging test "warns about the recipient's unverified devices" time out while the blocking test ran in parallel; it passed on its own immediately afterwards (flake under parallel load, noted to watch in CI).
-- `pnpm test:e2e` — **4 passed** in 1.3 min against the production build and the compose Synapse (journeys 35.8 s, session 10.2 s, accessibility public 5.8 s and signed-in 24.5 s); axe: no serious or critical findings on any visited screen; artifacts in `apps/web/e2e-results`.
+- Defect from the first CI run, reproduced locally with `refreshable_access_token_lifetime: 10s`: setup and the tab take-over ended in "Your session has expired" because the SDK (on 401) and the controller (proactively) both refreshed with the same single-use token. Fix (ADR-0005 D11): the SDK no longer receives the refresh token, a take-over starts from the pair the other tab saved last, and a refresh rejected after another tab rotated the pair adopts the stored pair. Unit: 264 web tests pass (3 new). Under the 10 s lifetime locally: `pnpm test:e2e` **4 passed** (1.9 min) and `ACCESS_TOKEN_LIFETIME_MS=10000 pnpm test:integration` **8 files, 22 tests pass** when run alone (a run started straight after the browser suite had 4 timeouts; rerun clean, recorded as load-related). Lifetime restored to 5 m afterwards.
+- `pnpm test:e2e` (5 m tokens) — **4 passed** in 1.3 min against the production build and the compose Synapse (journeys 35.8 s, session 10.2 s, accessibility public 5.8 s and signed-in 24.5 s); axe: no serious or critical findings on any visited screen; artifacts in `apps/web/e2e-results`.
 - Manual (runbook §10, built-in browser): settings hub; display name change seen by the other account; read receipts off by default then "Read by p4-bob" once B shared; presence "Last active … ago" after B stopped sharing; block confirmation and banner, Blocked users list, message sent while blocked not delivered, delivery after unblock; second tab blocked and take-over in both directions; Arabic locale flips the layout without overflow; 375 px phone layout without overflow (header wrap defect found and fixed); the "New conversation" dead end below the desktop breakpoint found and fixed. Not observed: an OS notification (permission blocked in the built-in browser) and a third device signing out the others (covered by the e2e suite and the integration test).
 - Cross-browser record (runbook §10): Chromium by the AI contributor (e2e + built-in browser); Chrome, Edge and Android Chrome entries **pending the owner**; Firefox and Safari not verified.
-- CI: **not run** for Phase 4 yet (nothing pushed).
+- CI: run 40097078795 on `6e3d80d` — checks, secrets-scan, poc-e2ee green; dev-env failed only in the e2e step (1 of 4) as described above. The fix commit is pushed; its run is recorded here once complete.
 
 ## Phase 4 exit gate (IMPLEMENTATION_PLAN.md)
 | Criterion | Evidence |
@@ -50,7 +51,7 @@ Executed 2026-10-24 on Windows 11, Node 22.20, pnpm 12.14, TypeScript 6.0.3, Doc
 | The production web build passes | e2e runs against `vite preview` of `pnpm build`; `checks` job builds |
 | Manual cross-browser verification is recorded | runbook §10 record: Chromium done; Chrome/Edge/Android Chrome rows await the owner |
 
-Gate **open**: evidence presented for the owner's decision; the cross-browser rows for the owner's browsers and the first CI run are outstanding.
+Gate **open**: evidence presented for the owner's decision; the cross-browser rows for the owner's browsers and a green CI run with the e2e step are outstanding.
 
 ## Blockers and risks
 - **R1 — Mobile E2EE on real devices untested** (ADR-0001 C2, Phase 5).
@@ -63,7 +64,7 @@ Gate **open**: evidence presented for the owner's decision; the cross-browser ro
 - **R11 — Without the Web Locks API a single tab is assumed** (all supported browsers have it; documented gap, TM-26).
 - The locale choice is not persisted across reloads; English strings under the Arabic locale show sentence punctuation on the left (expected until translated text exists).
 - After an unblock the homeserver re-syncs the room: the other person's "Read by" marker reappears on their next read, and a message they sent while blocked may or may not surface (integration: it did; manual: it did not, its key having been shared while ignored).
-- Phase 3 messaging integration test flaked once under parallel load (passes alone).
+- Integration tests time out when run straight after the browser suite on the same Synapse (seen twice today; clean when run alone). CI runs them before the e2e step.
 
 ## Deferred
 | Item | Reason | Risk while deferred |
@@ -85,7 +86,7 @@ Gate **open**: evidence presented for the owner's decision; the cross-browser ro
 - **One active tab per device** (ADR-0005 D1); **public read receipts opt-in** (D3); **blocking is the homeserver's ignore list, explained honestly** (D4); **WCAG 2.2 AA target with axe gating** (D7); **e2e against the production build** (D9).
 
 ## Next approved action
-Owner review of the Phase 4 exit gate: record the Chrome/Edge and Android Chrome checks in runbook §10, then give the go-ahead to push `main` so the CI dev-env job runs the end-to-end suite. No Phase 5 work starts before the gate closes.
+Owner review of the Phase 4 exit gate once the CI run of the fix is green: record the Chrome/Edge and Android Chrome checks in runbook §10 and decide on ADR-0005. No Phase 5 work starts before the gate closes.
 
 ## Last updated
 2026-10-24
