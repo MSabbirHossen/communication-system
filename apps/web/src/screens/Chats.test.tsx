@@ -11,9 +11,9 @@ import { formatConversationTime } from "./Chats";
 function chatsClient(rooms: Room[], direct: Record<string, string[]> = {}) {
   const em = new EventEmitter();
   const state = { direct, rooms, sync: "SYNCING" as string | null };
-  const setAccountData = vi.fn(async (_t: string, c: Record<string, string[]>) => {
+  const setAccountData = vi.fn(async (t: string, c: Record<string, string[]>) => {
     state.direct = c;
-    em.emit("accountData");
+    em.emit("accountData", { getType: () => t, getContent: () => c });
     return {};
   });
   const joinRoom = vi.fn(async () => ({}));
@@ -33,6 +33,8 @@ function chatsClient(rooms: Room[], direct: Record<string, string[]> = {}) {
     leave,
     getSyncState: () => state.sync,
     retryImmediately,
+    getUser: () => null,
+    setSyncPresence: vi.fn(async () => {}),
   } as unknown as MatrixClient;
   return { client, em, state, setAccountData, joinRoom, leave, retryImmediately };
 }

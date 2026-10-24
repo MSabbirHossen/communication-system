@@ -9,12 +9,14 @@ import {
   discardFailed,
   hasOlderHistory,
   loadOlder,
-  markReadPrivately,
+  markRead,
+  readUpTo,
   retrySend,
   sendText,
   type MessageItem,
 } from "../matrix/timeline";
 import { useSession } from "../session/SessionProvider";
+import { useUserSettings } from "../session/useSettings";
 import { useRecipientSecurity } from "../session/useRecipientSecurity";
 import { useConversations, useRoom, useRoomTimeline } from "../session/useRooms";
 import { authErrorMessage } from "./auth";
@@ -171,6 +173,7 @@ export function ConversationScreen() {
   const conversation = useConversations().find((c) => c.roomId === roomId);
   const items = useRoomTimeline(room);
   const security = useRecipientSecurity(conversation?.otherUserId);
+  const { settings } = useUserSettings();
   const [draft, setDraft] = useState(() => drafts.get(roomId) ?? "");
   const [error, setError] = useState<AuthError | "encryption_required" | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -197,7 +200,10 @@ export function ConversationScreen() {
       clearTimeout(timer);
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       timer = setTimeout(
-        () => void markReadPrivately(client, room).catch(() => undefined),
+        () =>
+          void markRead(client, room, { shareReadReceipts: settings.shareReadReceipts }).catch(
+            () => undefined,
+          ),
         READ_DELAY_MS,
       );
     };
@@ -207,7 +213,7 @@ export function ConversationScreen() {
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", schedule);
     };
-  }, [client, room, conversation?.membership, lastKey]);
+  }, [client, room, conversation?.membership, lastKey, settings.shareReadReceipts]);
 
   const older = useCallback(async () => {
     if (!client || !room) return;
@@ -274,9 +280,22 @@ export function ConversationScreen() {
   const eventFor = (item: MessageItem) =>
     item.eventId ? room.findEventById(item.eventId) : undefined;
 
+  const theirReadId = readUpTo(room, conversation.otherUserId);
+  const readIndex = theirReadId ? items.findIndex((i) => i.eventId === theirReadId) : -1;
+  let readMarkerKey: string | null = null;
+  if (readIndex >= 0) {
+    for (let i = readIndex; i >= 0; i--) {
+      const it = items[i]!;
+      if (it.mine && it.kind !== "system") {
+        readMarkerKey = it.key;
+        break;
+      }
+    }
+  }
   const rows = items.map((item, i) => ({
     item,
     separator: i === 0 || !sameDay(items[i - 1]!.ts, item.ts),
+    readByThem: item.key === readMarkerKey,
   }));
 
   return (
@@ -348,7 +367,7 @@ export function ConversationScreen() {
             {items.length === 0 && (
               <li className="messages__system type-meta text-muted">{t("chat.empty")}</li>
             )}
-            {rows.map(({ item, separator }) => (
+            {rows.map(({ item, separator, readByThem }) => (
               <li key={item.key} className="messages__group">
                 {separator && (
                   <p className="messages__date type-meta text-muted">
@@ -367,6 +386,11 @@ export function ConversationScreen() {
                       if (ev) discardFailed(client, ev);
                     }}
                   />
+                  {readByThem && (
+                    <li className="msg__read type-meta text-muted">
+                      {t("chat.readBy", { name: conversation.displayName })}
+                    </li>
+                  )}
                 </ul>
               </li>
             ))}

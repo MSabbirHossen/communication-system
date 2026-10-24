@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { EventEmitter } from "node:events";
 import { MatrixError } from "matrix-js-sdk";
 import type { MatrixClient } from "../matrix/client";
 import { controllerIn, renderApp, testSession } from "../test/session";
@@ -55,10 +56,16 @@ function devicesClient() {
     if (d) d.display_name = body.display_name;
     return {};
   });
+  const em = new EventEmitter();
   const client = {
     getUserId: () => testSession.userId,
     getDeviceId: () => testSession.deviceId,
+    on: (e: string, cb: (...a: unknown[]) => void) => em.on(e, cb),
+    removeListener: (e: string, cb: (...a: unknown[]) => void) => em.removeListener(e, cb),
+    setSyncPresence: vi.fn(async () => {}),
     getCrypto: () => crypto,
+    getAccountData: () => undefined,
+    getUser: () => null,
     getDevices: vi.fn(async () => ({ devices: [...devices] })),
     deleteDevice,
     setDeviceDetails,

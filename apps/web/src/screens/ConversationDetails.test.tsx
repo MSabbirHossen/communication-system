@@ -24,6 +24,7 @@ function detailsClient(crypto: ReturnType<typeof fakeRecipientCrypto>) {
     getAccountData: (t: string) =>
       t === "m.direct" ? { getContent: () => ({ [BOB]: [room.roomId] }) } : undefined,
     getSyncState: () => "SYNCING",
+    getUser: () => null,
     leave,
   } as unknown as MatrixClient;
   return { client, leave, room };

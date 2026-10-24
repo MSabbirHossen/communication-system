@@ -84,6 +84,7 @@ export function fakeRoom(spec: FakeRoomSpec): Room {
     getUnreadNotificationCount: () => spec.unread ?? 0,
     hasEncryptionStateEvent: () => spec.encrypted ?? true,
     getLiveTimeline: () => ({ getEvents: () => events, getPaginationToken: () => null }),
+    getReadReceiptForUserId: () => null,
   } as unknown as Room;
 }
 

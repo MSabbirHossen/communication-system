@@ -18,6 +18,7 @@ function chatRoom(
     backToken?: string | null;
   } = {},
 ) {
+  const readReceipts: Record<string, string> = {};
   const room = {
     roomId: opts.roomId ?? "!r:localhost",
     events: opts.events ?? [],
@@ -39,6 +40,9 @@ function chatRoom(
       getEvents: () => room.events,
       getPaginationToken: () => room.backToken,
     }),
+    readReceipts,
+    getReadReceiptForUserId: (userId: string) =>
+      readReceipts[userId] ? { eventId: readReceipts[userId], data: {} } : null,
     findEventById: (id: string) => room.events.find((e) => e.getId() === id),
   };
   return room as unknown as Room & typeof room;
@@ -74,6 +78,8 @@ function chatClient(
       t === "m.direct" ? { getContent: () => ({ [BOB]: [room.roomId] }) } : undefined,
     setAccountData: vi.fn(async () => ({})),
     getSyncState: () => "SYNCING",
+    setSyncPresence: vi.fn(async () => {}),
+    getUser: () => null,
     sendTextMessage,
     resendEvent,
     cancelPendingEvent,
@@ -324,5 +330,35 @@ describe("history auto-load", () => {
     const { scrollback } = await renderChat(room);
     await new Promise((r) => setTimeout(r, 50));
     expect(scrollback).not.toHaveBeenCalled();
+  });
+});
+
+describe("read state from the other person", () => {
+  it("shows a Read marker under the last own message they publicly read", async () => {
+    const mine1 = fakeEvent({ id: "$m1", sender: ME, content: { msgtype: "m.text", body: "one" } });
+    const theirs = fakeEvent({
+      id: "$t1",
+      sender: BOB,
+      content: { msgtype: "m.text", body: "reply" },
+    });
+    const mine2 = fakeEvent({ id: "$m2", sender: ME, content: { msgtype: "m.text", body: "two" } });
+    const room = chatRoom({ events: [mine1, theirs, mine2] });
+    room.readReceipts[BOB] = "$t1"; // Bob read up to his own reply: "one" is read, "two" is not
+    await renderChat(room);
+    const list = screen.getByRole("list", { name: "Messages" });
+    const markers = list.querySelectorAll(".msg__read");
+    expect(markers).toHaveLength(1);
+    expect(markers[0]!.closest(".messages__group")).toHaveTextContent("one");
+    expect(markers[0]).toHaveTextContent("Read by Bob");
+  });
+
+  it("shows no Read marker when they share no read state", async () => {
+    const room = chatRoom({
+      events: [fakeEvent({ id: "$m1", sender: ME, content: { msgtype: "m.text", body: "one" } })],
+    });
+    await renderChat(room);
+    expect(
+      screen.getByRole("list", { name: "Messages" }).querySelectorAll(".msg__read"),
+    ).toHaveLength(0);
   });
 });

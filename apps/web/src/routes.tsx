@@ -3,6 +3,7 @@ import { AppShell } from "./shell/AppShell";
 import { NotFoundScreen, RouteErrorScreen, WelcomeScreen } from "./screens";
 import { SettingsScreen } from "./screens/Settings";
 import { ProfileScreen } from "./screens/Profile";
+import { PrivacySettingsScreen } from "./screens/PrivacySettings";
 import { PendingScreen } from "./screens/pending";
 import { LoginScreen, PrivacyScreen, RegisterScreen } from "./screens/auth";
 import { ChatsScreen, NoConversationSelected } from "./screens/Chats";
@@ -69,7 +70,7 @@ export const routes: RouteObject[] = [
           { path: "/people", element: <NewConversationScreen /> },
           { path: "/settings", element: <SettingsScreen /> },
           { path: "/settings/profile", element: <ProfileScreen /> },
-          { path: "/settings/privacy", element: <PendingScreen /> },
+          { path: "/settings/privacy", element: <PrivacySettingsScreen /> },
           { path: "/settings/blocked", element: <PendingScreen /> },
           { path: "/settings/devices", element: <DevicesSecurityScreen /> },
           { path: "/settings/devices/verify/:deviceId", element: <VerifyDeviceScreen /> },

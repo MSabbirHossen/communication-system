@@ -6,8 +6,19 @@ import { toAuthError, type AuthError } from "../matrix/errors";
 import type { RecipientSecurity } from "../matrix/recipientSecurity";
 import { useSession } from "../session/SessionProvider";
 import { useRecipientSecurity } from "../session/useRecipientSecurity";
+import { usePresence } from "../session/useSettings";
 import { useConversations } from "../session/useRooms";
 import { authErrorMessage } from "./auth";
+
+/** "5 min" / "3 h" / "2 d" from milliseconds (coarse on purpose). */
+export function formatAgo(ms: number): string {
+  const min = Math.round(ms / 60_000);
+  if (min < 1) return t("presence.justNow");
+  if (min < 60) return `${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 48) return `${h} h`;
+  return `${Math.round(h / 24)} d`;
+}
 
 /** Identity badge text and tone, from SDK state only. */
 export function identityBadge(s: RecipientSecurity | null): { label: string; cls: string } {
@@ -34,6 +45,7 @@ export function ConversationDetailsScreen() {
   const navigate = useNavigate();
   const conversation = useConversations().find((c) => c.roomId === roomId);
   const security = useRecipientSecurity(conversation?.otherUserId);
+  const presence = usePresence(conversation?.otherUserId);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
@@ -94,6 +106,15 @@ export function ConversationDetailsScreen() {
         <p className="type-meta">
           <code>{conversation.otherUserId}</code>
         </p>
+        {presence.presence !== "unknown" && (
+          <p className="type-meta text-muted" data-testid="presence">
+            {presence.presence === "online" && presence.currentlyActive
+              ? t("presence.online")
+              : presence.lastActiveAgo !== null
+                ? t("presence.lastActive", { ago: formatAgo(presence.lastActiveAgo) })
+                : t(`presence.${presence.presence}`)}
+          </p>
+        )}
         <p className="type-meta text-muted">
           {t(`security.identity.${security?.identity ?? "unknown"}.help` as MessageKey)}
         </p>

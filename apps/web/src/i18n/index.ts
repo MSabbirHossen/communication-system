@@ -153,6 +153,30 @@ const en = {
   "profile.field.too_long": "Use at most {max} characters.",
   "profile.save": "Save",
   "profile.saved": "Display name saved.",
+  "privacySettings.intro":
+    "These settings change what this app sends and shows. They are stored with your account so your other devices follow them.",
+  "privacySettings.sharing": "What others can see",
+  "privacySettings.receipts": "Share read receipts",
+  "privacySettings.receipts.help":
+    'Off: nobody sees when you read a message; your own devices still agree on what is unread. On: the people you talk to see "Read" under their messages.',
+  "privacySettings.presence": "Share whether I am online",
+  "privacySettings.presence.help":
+    "On: the server tells people you talk to whether you are online or when you were last active. Off: this device reports itself as offline.",
+  "privacySettings.notifications": "Browser notifications",
+  "privacySettings.preview": "Notification text",
+  "privacySettings.preview.off": "No notifications",
+  "privacySettings.preview.generic": '"New message" only',
+  "privacySettings.preview.sender": '"New message from <name>"',
+  "privacySettings.preview.help":
+    "Message content never appears in a notification. The browser also has its own permission for notifications.",
+  "privacySettings.serverNote":
+    "The server always sees who you talk to and when, your devices' public keys, and these settings themselves. It never sees message content.",
+  "chat.readBy": "Read by {name}",
+  "presence.online": "Online",
+  "presence.unavailable": "Away",
+  "presence.offline": "Offline",
+  "presence.lastActive": "Last active {ago} ago",
+  "presence.justNow": "just now",
   "settings.signedInAs": "Signed in as",
   "offline.banner": "You are offline. Messages will send when you reconnect.",
   "error.title": "Something went wrong",

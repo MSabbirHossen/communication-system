@@ -176,22 +176,47 @@ export async function loadOlder(client: MatrixClient, room: Room, limit = 30): P
   return hasOlderHistory(room);
 }
 
-const lastPrivateReceipt = new Map<string, string>();
+const lastReceipt = new Map<string, string>();
+
+export interface ReadOptions {
+  /** Also send the public m.read receipt so the other person sees "Read" (owner-controlled setting). */
+  shareReadReceipts: boolean;
+}
 
 /**
- * Mark the latest server-accepted event as read with a private receipt (m.read.private):
- * the user's own devices learn it, nobody else does (owner decision 2026-10-23). Never
- * sends the public m.read receipt. Skips pending local echoes and repeats.
+ * Mark the latest server-accepted event as read. The private receipt (m.read.private) is
+ * always sent so the user's own devices agree on unread state; the public receipt is sent
+ * only when the user chose to share read state (ADR-0004 D5, ADR-0005). Skips pending local
+ * echoes and repeats.
  */
-export async function markReadPrivately(client: MatrixClient, room: Room): Promise<void> {
+export async function markRead(
+  client: MatrixClient,
+  room: Room,
+  options: ReadOptions = { shareReadReceipts: false },
+): Promise<void> {
   const events = room.getLiveTimeline().getEvents();
   for (let i = events.length - 1; i >= 0; i--) {
     const ev = events[i]!;
     const id = ev.getId();
     if (!id || ev.status !== null) continue; // pending or failed local echo
-    if (lastPrivateReceipt.get(room.roomId) === id) return;
-    lastPrivateReceipt.set(room.roomId, id);
+    const key = `${room.roomId}:${options.shareReadReceipts ? "public" : "private"}`;
+    if (lastReceipt.get(key) === id) return;
+    lastReceipt.set(key, id);
     await client.sendReadReceipt(ev, ReceiptType.ReadPrivate);
+    if (options.shareReadReceipts) await client.sendReadReceipt(ev, ReceiptType.Read);
     return;
   }
+}
+
+/** Kept for callers that only ever want the private receipt. */
+export function markReadPrivately(client: MatrixClient, room: Room): Promise<void> {
+  return markRead(client, room, { shareReadReceipts: false });
+}
+
+/**
+ * The id of the last event `userId` has publicly marked read, or null when they share no
+ * read state (synthesized receipts for their own sends are ignored).
+ */
+export function readUpTo(room: Room, userId: string): string | null {
+  return room.getReadReceiptForUserId(userId, true, ReceiptType.Read)?.eventId ?? null;
 }

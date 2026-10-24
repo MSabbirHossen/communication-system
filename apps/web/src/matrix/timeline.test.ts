@@ -7,7 +7,9 @@ import {
   discardFailed,
   hasOlderHistory,
   loadOlder,
+  markRead,
   markReadPrivately,
+  readUpTo,
   retrySend,
   sendText,
   statusOf,
@@ -78,15 +80,19 @@ export function fakeTimelineRoom(
   encrypted = true,
   backToken: string | null = null,
 ) {
+  const readReceipts: Record<string, string> = {};
   const room = {
     roomId,
     events,
     backToken,
     hasEncryptionStateEvent: () => encrypted,
+    readReceipts,
     getLiveTimeline: () => ({
       getEvents: () => room.events,
       getPaginationToken: () => room.backToken,
     }),
+    getReadReceiptForUserId: (userId: string) =>
+      readReceipts[userId] ? { eventId: readReceipts[userId], data: {} } : null,
     findEventById: (id: string) => room.events.find((e) => e.getId() === id),
   };
   return room as unknown as Room & typeof room;
@@ -293,5 +299,24 @@ describe("history and receipts", () => {
     const { client, sendReadReceipt } = fakeTimelineClient([room]);
     await markReadPrivately(client, room);
     expect(sendReadReceipt).not.toHaveBeenCalled();
+  });
+});
+
+describe("read receipts by setting", () => {
+  it("sends the public receipt only when sharing is on, always after the private one", async () => {
+    const sent = fakeEvent({ id: "$s" });
+    const room = fakeTimelineRoom("!share", [sent]);
+    const { client, sendReadReceipt } = fakeTimelineClient([room]);
+    await markRead(client, room, { shareReadReceipts: true });
+    expect(sendReadReceipt.mock.calls.map((c) => c[1])).toEqual(["m.read.private", "m.read"]);
+    await markRead(client, room, { shareReadReceipts: true });
+    expect(sendReadReceipt).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports the other person's public read position, ignoring synthesized receipts", () => {
+    const room = fakeTimelineRoom("!r", [fakeEvent({ id: "$1" })]);
+    expect(readUpTo(room, BOB)).toBeNull();
+    room.readReceipts[BOB] = "$1";
+    expect(readUpTo(room, BOB)).toBe("$1");
   });
 });

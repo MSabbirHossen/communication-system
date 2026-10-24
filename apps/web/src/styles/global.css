@@ -655,3 +655,48 @@ code {
 .settings-row__title {
   font-weight: var(--cs-font-weight-medium, 500);
 }
+
+/* Switches (Phase 4) */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cs-space-4);
+  padding: var(--cs-space-2) 0;
+}
+.switch-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cs-space-1);
+}
+.switch {
+  flex: none;
+  width: 44px;
+  height: 24px;
+  border-radius: var(--cs-radius-pill);
+  border: var(--cs-size-border-width) solid var(--cs-color-border);
+  background: var(--cs-color-bg);
+  padding: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.switch--on {
+  background: var(--cs-color-primary);
+  border-color: var(--cs-color-primary);
+  justify-content: flex-end;
+}
+.switch__knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--cs-color-surface);
+}
+.switch:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.msg__read {
+  text-align: end;
+  margin: 0 var(--cs-space-2);
+}
