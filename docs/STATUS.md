@@ -32,7 +32,7 @@ Executed 2026-10-24 on Windows 11, Node 22.20, pnpm 12.14, TypeScript 6.0.3, Doc
 - `HOMESERVER_URL=http://localhost:8008 npx vitest run --project web-integration push.integration` — **1 passed**: the gateway stub recorded two pushes for the invited and messaged account with keys `counts, devices, event_id, prio, room_id` and no forbidden field; the Synapse log shows `Received response to POST http://cs-push-stub:8010/_matrix/push/v1/notify: 200`.
 - Spike runner in Chromium (spike build served by `vite preview`, compose Synapse): phase 1 `web_locks, secure_storage, wasm_crypto, crypto_setup, sync, encrypt_decrypt, reply_sent` PASS; peer `peer_roundtrip` PASS; after reload `session_restores, store_persists, history_persists, revocation, secure_storage_cleared` PASS. One defect found and fixed during this run: the history check read the cached timeline before decryption finished; it now waits and pages once, as the app does.
 - Not run locally (no toolchain): Gradle and Xcode builds, the emulator and simulator spikes, the owner's phone checklist.
-- CI: **not run** for Phase 5 yet (nothing pushed). The Mobile workflow's first run will also be the first execution of the Gradle and Xcode builds; first-run fixes are expected, as in Phase 4.
+- CI (pushed 2026-10-24 on the owner's go-ahead): run 40109444999 (`2743ecd`) green on all four jobs, including the push-stub integration test and the e2e suite. Mobile workflow, first runs: #1 failed at `setup-android@v3` (no longer runs; moved to v4), #2/#3 at the committed `gradlew` lacking the executable bit (exit 126; bit set, workflow chmods) and at spike scripts truncated by a patch (rewritten); run #4 (`5037863`, 40111021726): **Android debug and spike APKs built and uploaded** (2m44s); **Android emulator spike** (API 34 System WebView): `web_locks`, `secure_storage` (Keystore plugin) and `wasm_crypto` PASS, then no further line (stalled at crypto setup); **iOS simulator**: built, console captured, `web_locks` PASS, then no further line (stalled at registration or secure storage). Run #5 (`90d4ef9`) adds step markers and public log annotations to find the cause. **In progress when the session's usage limit was reached.**
 
 ## Phase 5 exit gate (IMPLEMENTATION_PLAN.md)
 | Criterion | Evidence so far | Outstanding |
@@ -43,7 +43,7 @@ Executed 2026-10-24 on Windows 11, Node 22.20, pnpm 12.14, TypeScript 6.0.3, Doc
 | Push notifications do not expose message contents by default | gateway-boundary integration test; generic text in the app | delivery deferred (no credentials) — recorded |
 | Offline and reconnection flows pass manual tests | Phase 3 web evidence; lifecycle hooks unit-tested | owner's phone: airplane mode, background/foreground |
 
-Gate **open**: implementation complete; device evidence pending the first Mobile workflow run and the owner's phone checklist. iOS is simulator-only by the owner's decision (real device Blocked), so ADR-0001 C2 can close for Android only.
+Gate **open**: implementation complete; first device evidence partial (Android: build, secure storage and wasm crypto proven on the emulator; iOS: build proven), spike completion on both platforms and the owner's phone checklist outstanding. iOS is simulator-only by the owner's decision (real device Blocked), so ADR-0001 C2 can close for Android only.
 
 ## Blockers and risks
 - **R1 — Mobile E2EE on real devices untested**: now narrowed to the Mobile workflow run and the owner's phone; iOS real device Blocked (no Mac/iPhone).
@@ -74,7 +74,7 @@ Gate **open**: implementation complete; device evidence pending the first Mobile
 - **The spike is a flagged build of the real client code** (ADR-0006 D7).
 
 ## Next approved action
-Owner go-ahead to push `main`, which runs the Mobile workflow for the first time; fix first-run problems in the native builds or spike jobs; then the owner sideloads the APKs and fills the device record in runbook §11. The Phase 5 gate is decided on that evidence. No Phase 6 work starts before the gate closes.
+Read the Mobile run #5 annotations (step markers and WebView errors), fix the stall after `wasm_crypto` on Android and after `web_locks` on iOS, and rerun until the spike reports all checks; then the owner sideloads the APKs (artifact `android-apks` of a green run) and fills the device record in runbook §11. The Phase 5 gate is decided on that evidence. No Phase 6 work starts before the gate closes.
 
 ## Last updated
 2026-10-24
