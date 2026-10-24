@@ -16,6 +16,8 @@ import {
 import { ensureCryptoReady, getCryptoReadiness } from "./matrix/cryptoSetup";
 import { SecretStorageKeyHolder } from "./matrix/recoveryKey";
 import { clearSession, loadSession, saveSession } from "./matrix/sessionStore";
+import { installNativeLifecycle, isNativePlatform, nativePlatform } from "./platform/native";
+import { secureSessionStore } from "./platform/secureSession";
 import { createAppRouter } from "./routes";
 import { SessionController } from "./session/controller";
 import { acquireTabLease } from "./session/tabLease";
@@ -30,7 +32,12 @@ try {
   const env = loadWebEnv();
   const logger = makeLogger(env);
   setLocale("en");
-  logger.debug("web client starting", { appEnv: env.appEnv });
+  logger.debug("web client starting", { appEnv: env.appEnv, platform: nativePlatform() });
+  // Native apps keep the session record in Keystore/Keychain-backed storage (ADR-0006);
+  // the browser keeps its app-owned IndexedDB record.
+  const sessions = isNativePlatform()
+    ? secureSessionStore()
+    : { loadSession: () => loadSession(), saveSession, clearSession };
 
   const controller = new SessionController({
     homeserverUrl: env.homeserverUrl,
@@ -38,9 +45,9 @@ try {
     keyHolder: new SecretStorageKeyHolder(),
     getCryptoReadiness,
     ensureCryptoReady,
-    loadSession: () => loadSession(),
-    saveSession: (s) => saveSession(s),
-    clearSession: () => clearSession(),
+    loadSession: () => sessions.loadSession(),
+    saveSession: (s) => sessions.saveSession(s),
+    clearSession: () => sessions.clearSession(),
     login,
     register,
     refreshSession,
@@ -56,6 +63,14 @@ try {
     stopAndClearClient,
     acquireTabLease: (deviceId, onLost) => acquireTabLease(deviceId, onLost),
   });
+
+  if (isNativePlatform()) {
+    void installNativeLifecycle({
+      onResume: () => controller.getSnapshot().client?.retryImmediately(),
+    }).catch((e: unknown) =>
+      logger.warn("native lifecycle hooks unavailable", { error: String(e) }),
+    );
+  }
 
   root.render(
     <StrictMode>

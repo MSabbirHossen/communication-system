@@ -14,6 +14,9 @@
     "test:e2e": "pnpm build && playwright test"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "8.0.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
     "@cs/design-tokens": "workspace:*",
     "@cs/logger": "workspace:*",
     "@cs/shared-types": "workspace:*",

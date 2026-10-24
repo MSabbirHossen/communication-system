@@ -131,6 +131,7 @@ export function PrivacyScreen() {
       <p className="type-body">{t("privacy.e2ee")}</p>
       <p className="type-body">{t("privacy.metadata")}</p>
       <p className="type-body">{t("privacy.webKeys")}</p>
+      <p className="type-body">{t("privacy.mobileKeys")}</p>
       <p className="type-body">{t("privacy.recovery")}</p>
       <Link to="/" className="link">
         {t("nav.back")}

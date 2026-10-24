@@ -413,6 +413,8 @@ const en = {
     "The server can still see who talks to whom, when, message sizes, your devices' public keys, and connection details such as IP addresses. Metadata is not encrypted.",
   "privacy.webKeys":
     "In a web browser your encryption keys are stored in the browser's storage for this site. They are protected by browser isolation, not by dedicated hardware.",
+  "privacy.mobileKeys":
+    "In the Android and iOS apps your encryption keys are stored in the app's private storage on the device, protected by the operating system's app sandbox and file encryption, not by dedicated security hardware. Your sign-in tokens are kept in the platform's secure storage.",
   "privacy.recovery":
     "Your recovery key is the only way to restore encrypted history on a new device. We cannot recover it for you.",
 } as const;

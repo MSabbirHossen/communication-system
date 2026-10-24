@@ -80,7 +80,7 @@ async function withStore<T>(
   }
 }
 
-function isStoredSession(v: unknown): v is StoredSession {
+export function isStoredSession(v: unknown): v is StoredSession {
   if (!v || typeof v !== "object") return false;
   const s = v as Record<string, unknown>;
   return (

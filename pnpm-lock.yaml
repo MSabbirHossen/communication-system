@@ -118,6 +118,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@aparajita/capacitor-secure-storage':
+        specifier: 8.0.0
+        version: 8.0.0
+      '@capacitor/app':
+        specifier: 8.1.2
+        version: 8.1.2(@capacitor/core@8.5.3)
+      '@capacitor/core':
+        specifier: 8.5.3
+        version: 8.5.3
       '@cs/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
