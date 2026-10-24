@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug build type only: allow cleartext HTTP so a debug or spike build can reach the
+  development homeserver (the emulator's 10.0.2.2:8008 or a PC on the LAN). The main
+  manifest declares nothing, so release builds keep the platform default of no cleartext
+  (THREAT_MODEL TM-27, ADR-0006).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:usesCleartextTraffic="true" />
+</manifest>

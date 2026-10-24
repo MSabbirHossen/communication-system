@@ -1,4 +1,4 @@
-// Copies the web build into native platforms when they exist; otherwise explains why not.
+// Copies the web build and plugin configuration into the native platforms (`cap sync`).
 // Run by `pnpm -r build` after @cs/web (declared as a workspace devDependency so pnpm orders
 // the builds); `pnpm --filter @cs/mobile build:web` builds the web app first when run alone.
 import { existsSync } from "node:fs";
@@ -15,11 +15,12 @@ if (!existsSync(webDist)) {
   process.exit(1);
 }
 const platforms = ["android", "ios"].filter((p) => existsSync(join(root, p)));
-if (platforms.length === 0) {
-  console.log(
-    "mobile: no native platforms present (expected in Phase 1). Phase 5 adds them with `pnpm --filter @cs/mobile cap add android|ios` after the device spike (ADR-0001 C2).",
+if (platforms.length < 2) {
+  console.error(
+    `mobile: native platforms missing (${platforms.join(", ") || "none"}); they are committed under apps/mobile/android and apps/mobile/ios.`,
   );
-  process.exit(0);
+  process.exit(1);
 }
-const result = spawnSync("npx", ["cap", "copy"], { cwd: root, stdio: "inherit", shell: true });
+// `cap sync` copies the web build and the generated plugin lists into both native projects.
+const result = spawnSync("npx", ["cap", "sync"], { cwd: root, stdio: "inherit", shell: true });
 process.exit(result.status ?? 1);

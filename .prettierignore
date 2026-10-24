@@ -4,6 +4,8 @@ build
 pnpm-lock.yaml
 poc/matrix-e2ee/evidence
 infrastructure/synapse/data
+apps/mobile/android
+apps/mobile/ios
 *.md
 # written by local PoC / integration runs
 **/last-run.json

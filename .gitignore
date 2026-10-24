@@ -11,6 +11,4 @@ apps/web/test/integration/last-run.json
 apps/web/e2e-results/
 apps/web/e2e-report/
 infrastructure/synapse/data/
-apps/mobile/android/
-apps/mobile/ios/
 .claude/
