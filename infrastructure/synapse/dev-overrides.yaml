@@ -19,3 +19,7 @@ rc_message:
 # (THREAT_MODEL TM-06). CI shortens the access-token lifetime to exercise expiry.
 refreshable_access_token_lifetime: 5m
 refresh_token_lifetime: 30d
+# The development push gateway stub runs on the compose network (a private range Synapse
+# refuses to contact by default). Development only.
+ip_range_whitelist:
+  - "172.16.0.0/12"

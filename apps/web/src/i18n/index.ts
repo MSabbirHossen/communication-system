@@ -191,6 +191,8 @@ const en = {
   "notifications.permission.help":
     "The browser decides whether notifications may appear at all; the choice above decides what they say. They are shown only while this tab is not in front.",
   "notifications.allow": "Allow browser notifications",
+  "notifications.push.pending":
+    "Push notifications for this app arrive once the push gateway is set up. They will say only that a new message is available, never what it says.",
   "presence.online": "Online",
   "presence.unavailable": "Away",
   "presence.offline": "Offline",

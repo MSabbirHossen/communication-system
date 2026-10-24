@@ -10,6 +10,7 @@ import {
   type NotificationPermissionState,
 } from "../session/notifications";
 import { useUserSettings } from "../session/useSettings";
+import { isNativePlatform } from "../platform/native";
 import { authErrorMessage } from "./auth";
 
 const PREVIEWS: NotificationPreview[] = ["off", "generic", "sender"];
@@ -100,6 +101,9 @@ export function PrivacySettingsScreen() {
             </span>
           </p>
           <p className="type-meta text-muted">{t("notifications.permission.help")}</p>
+          {isNativePlatform() && (
+            <p className="type-meta text-muted">{t("notifications.push.pending")}</p>
+          )}
           {permission === "default" && settings.notificationPreview !== "off" && (
             <div className="actions actions--start">
               <button type="button" className="button" onClick={allowNotifications}>

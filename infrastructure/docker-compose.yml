@@ -34,6 +34,20 @@ services:
       retries: 12
       start_period: 20s
 
+  # Development push gateway stub (ADR-0006, TM-12): records the homeserver's pushes so the
+  # integration tests can prove a content-free pusher receives identifiers only. Replaced by
+  # Sygnal with FCM/APNs credentials outside development.
+  push-stub:
+    image: node:22-alpine
+    container_name: cs-push-stub
+    restart: unless-stopped
+    working_dir: /app
+    command: ["node", "/app/server.mjs"]
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./push-stub:/app:ro
+
   mongo:
     image: mongo:7
     container_name: cs-mongo
