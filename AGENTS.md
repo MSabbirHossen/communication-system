@@ -56,6 +56,7 @@ Check whether these documents exist before relying on them:
 - `docs/architecture/` — architecture decision records and system diagrams.
 - `docs/security/` — threat model, security policies and security testing.
 - `docs/STATUS.md` — current phase, completed work, blockers and next action.
+- `docs/HANDOFF.md` — snapshot for an incoming agent: state, next steps, how to run, pitfalls. Keep it consistent with `docs/STATUS.md` whenever a phase changes hands.
 
 These are suggested canonical paths. If equivalent documents already exist elsewhere, preserve their established locations or document an approved migration. Do not create duplicate competing sources of truth.
 
