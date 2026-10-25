@@ -51,7 +51,7 @@ xcrun simctl install booted "$APP"
 launch "$OUT/phase1.log"
 echo "== phase 1: waiting for the spike account"
 wait_for_line "$OUT/phase1.log" "CS_SPIKE account " 180
-SPIKE_USER="$(grep -o 'CS_SPIKE account @[^ ]*' "$OUT/phase1.log" | head -n1 | awk '{print $3}')"
+SPIKE_USER="$(grep -o 'CS_SPIKE account @[^ ]*' "$OUT/phase1.log" | head -n1 | awk '{print $3}' | tr -d '\r')"
 echo "spike account: $SPIKE_USER"
 ( cd "$REPO" && SPIKE_PEER_USER="$SPIKE_USER" SPIKE_PEER_LOG="$OUT/peer.log" NO_COLOR=1 \
     npx vitest run --project mobile-spike 2>&1 | tee -a "$OUT/peer.log" ) || true

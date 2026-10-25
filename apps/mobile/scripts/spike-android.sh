@@ -50,7 +50,7 @@ adb logcat -c
 adb shell am start -n "$ACT" >/dev/null
 echo "== phase 1: waiting for the spike account"
 wait_for_line "CS_SPIKE account " 180
-SPIKE_USER="$(adb logcat -d -s 'Capacitor/Console:*' | grep -o 'CS_SPIKE account @[^ ]*' | head -n1 | awk '{print $3}')"
+SPIKE_USER="$(adb logcat -d -s 'Capacitor/Console:*' | grep -o 'CS_SPIKE account @[^ ]*' | head -n1 | awk '{print $3}' | tr -d '\r')"
 echo "spike account: $SPIKE_USER"
 echo "== peer exchange"
 ( cd "$REPO" && SPIKE_PEER_USER="$SPIKE_USER" SPIKE_PEER_LOG="$OUT/peer.log" NO_COLOR=1 \
