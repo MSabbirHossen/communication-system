@@ -177,13 +177,15 @@ jobs:
           VITE_MOBILE_SPIKE: "1"
           CS_MOBILE_VARIANT: debug
         run: pnpm build:packages && pnpm --filter @cs/mobile build:web
+      # Signed ad hoc (no team, no certificate): the simulator reads the app's entitlements
+      # from a section written at signing time; unsigned, the Keychain answers -34018.
       - name: Build for the simulator
         working-directory: apps/mobile/ios/App
         run: |
           xcodebuild -version
           xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/dd" \
-            CODE_SIGNING_ALLOWED=NO build | tail -n 40
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tail -n 40
       - name: Boot a simulator and run the spike
         env:
           HOMESERVER_URL: http://127.0.0.1:8008
