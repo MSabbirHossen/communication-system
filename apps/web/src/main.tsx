@@ -1,3 +1,5 @@
+// Runtime shims first: SDK chunks evaluated below rely on them (ADR-0006).
+import "./platform/polyfills";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
