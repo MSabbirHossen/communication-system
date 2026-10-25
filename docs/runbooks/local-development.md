@@ -197,9 +197,9 @@ Built and run on the iOS simulator in CI only (`ios-spike-evidence` artifact). A
 | Platform | Device / OS / WebView | Checked by | Date | Spike | Checklist |
 |---|---|---|---|---|---|
 | Chromium (browser) | Windows 11, Chrome 152 | AI contributor | 2026-10-24 | 13/13 PASS | n/a |
-| Android emulator | API 34 x86_64, System WebView | CI | — | see STATUS | n/a |
+| Android emulator | API 34 x86_64, System WebView Chrome 113 | CI | 2026-10-25 | 13/13 PASS (Mobile run #7) | n/a |
 | Android phone | — | owner | — | pending | pending |
-| iOS simulator | macOS 26 runner, Xcode 26 | CI | — | see STATUS | n/a |
+| iOS simulator | macOS 26 runner, Xcode 26, iOS 18.7 | CI | 2026-10-25 | 13/13 PASS (Mobile run #7) | n/a |
 | iPhone | — | — | — | Blocked | Blocked |
 
 ## 12. Reset everything
@@ -226,3 +226,5 @@ Production deployment (TLS, PostgreSQL for Synapse, secret management) is docume
 - Synapse never becomes healthy: `docker logs cs-synapse`; a wrong `UID/GID` in `infrastructure/.env` makes `/data` unwritable, rerun `pnpm dev:env:reset`.
 - `Registration has been disabled` from the PoC: the overrides were not appended on a new line; rerun `pnpm dev:env:reset`.
 - API exits with `Invalid environment configuration`: the message lists the variable names to fix in `apps/api/.env`.
+- Android app or spike logs `Promise.withResolvers is not a function`: the device's System WebView is older than Chrome 119 and the build predates the shim in `apps/web/src/platform/polyfills.ts` (commit `7643c78`); rebuild, or update Android System WebView from the Play Store.
+- iOS simulator spike fails at `secure_storage` with `An OS error occurred (-34018)`: the app was built unsigned (`CODE_SIGNING_ALLOWED=NO`); the simulator reads entitlements from the signature, so build with `CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO` (ad hoc) as the Mobile workflow does.
