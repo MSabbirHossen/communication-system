@@ -13,6 +13,12 @@ export interface StoredSession {
   /** Epoch ms when the access token expires, when the server told us. */
   accessTokenExpiresAt?: number;
   createdAt: number;
+  /**
+   * Epoch ms when the user skipped secure device setup ("verify from another device").
+   * Later starts open the app with a persistent unverified-device notice instead of the
+   * setup screen (ADR-0003 D5, amended 2026-10-31). Never a secret; absent once verified.
+   */
+  setupDeferredAt?: number;
 }
 
 export class SessionStorageUnavailableError extends Error {
@@ -91,6 +97,7 @@ export function isStoredSession(v: unknown): v is StoredSession {
     typeof s.accessToken === "string" &&
     (s.refreshToken === undefined || typeof s.refreshToken === "string") &&
     (s.accessTokenExpiresAt === undefined || typeof s.accessTokenExpiresAt === "number") &&
+    (s.setupDeferredAt === undefined || typeof s.setupDeferredAt === "number") &&
     typeof s.createdAt === "number"
   );
 }

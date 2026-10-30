@@ -44,6 +44,8 @@ export interface SessionState {
   /** Last auth/startup error, for the screens to render. */
   error: AuthError | null;
   setup: SetupUi;
+  /** Signed in on a device that skipped secure setup: shown as a persistent notice (ADR-0003 D5). */
+  deviceUnverified: boolean;
 }
 
 export interface SessionDeps {
@@ -92,6 +94,7 @@ export class SessionController {
     client: null,
     error: null,
     setup: { phase: "idle" },
+    deviceUnverified: false,
   };
   private readonly listeners = new Set<Listener>();
   private booted = false;
@@ -196,7 +199,9 @@ export class SessionController {
     try {
       const outcome = await this.deps.ensureCryptoReady(client, this.deps.keyHolder, prompts);
       this.deps.logger.info("secure device setup finished", { outcome: outcome.outcome });
-      this.set({ status: "ready", setup: { phase: "done", outcome } });
+      const deferred = outcome.outcome === "skipped_needs_verification";
+      await this.persistSetupDeferred(deferred);
+      this.set({ status: "ready", setup: { phase: "done", outcome }, deviceUnverified: deferred });
     } catch (err) {
       const error =
         err instanceof UiaCancelled
@@ -220,6 +225,26 @@ export class SessionController {
   retrySetup(): void {
     if (this.state.setup.phase === "failed") this.set({ setup: { phase: "idle" } });
     void this.runSetup();
+  }
+
+  /** From the unverified-device notice: reopen the setup screen to enter the recovery key. */
+  reopenSetup(): void {
+    if (this.state.status !== "ready" || !this.state.deviceUnverified) return;
+    this.set({ status: "crypto_setup", setup: { phase: "idle" } });
+  }
+
+  /** Re-check readiness (after an own-device verification); clears the notice once verified. */
+  async refreshReadiness(): Promise<void> {
+    const { client, status, deviceUnverified } = this.state;
+    if (!client || status !== "ready" || !deviceUnverified) return;
+    const readiness = await this.deps.getCryptoReadiness(client);
+    if (readiness.crossSigningReady && readiness.secretStorageReady) {
+      await this.persistSetupDeferred(false);
+      this.set({ deviceUnverified: false });
+      this.deps.logger.info("device verified; unverified-device notice cleared", {
+        deviceId: this.state.session?.deviceId,
+      });
+    }
   }
 
   submitSetupPassword(password: string): void {
@@ -433,7 +458,13 @@ export class SessionController {
 
   private async start(stored: StoredSession): Promise<void> {
     let session = stored;
-    this.set({ status: "starting", session, error: null, setup: { phase: "idle" } });
+    this.set({
+      status: "starting",
+      session,
+      error: null,
+      setup: { phase: "idle" },
+      deviceUnverified: false,
+    });
 
     if (!(await this.ensureLease(session.deviceId))) {
       this.deps.logger.info("another tab holds this device; waiting for take-over", {
@@ -488,11 +519,20 @@ export class SessionController {
     }
 
     const readiness = await this.deps.getCryptoReadiness(client);
+    const record = this.state.session ?? session;
     if (readiness.crossSigningReady && readiness.secretStorageReady) {
-      this.set({ status: "ready" });
+      await this.persistSetupDeferred(false);
+      this.set({ status: "ready", deviceUnverified: false });
       this.deps.logger.info("session ready", { deviceId: session.deviceId });
+    } else if (record.setupDeferredAt !== undefined && readiness.accountHasCrossSigning) {
+      // The user chose "verify from another device" on this device: open the app with a
+      // persistent unverified-device notice instead of the setup screen (ADR-0003 D5, amended).
+      this.set({ status: "ready", deviceUnverified: true });
+      this.deps.logger.info("secure device setup deferred by the user", {
+        deviceId: session.deviceId,
+      });
     } else {
-      this.set({ status: "crypto_setup" });
+      this.set({ status: "crypto_setup", deviceUnverified: false });
       this.deps.logger.info("secure device setup required", {
         deviceId: session.deviceId,
         accountHasCrossSigning: readiness.accountHasCrossSigning,
@@ -530,7 +570,20 @@ export class SessionController {
       client: null,
       error,
       setup: { phase: "idle" },
+      deviceUnverified: false,
     });
+  }
+
+  /** Record (or clear) the user's choice to skip setup on this device in the session record. */
+  private async persistSetupDeferred(deferred: boolean): Promise<void> {
+    const current = this.state.session;
+    if (!current) return;
+    if (!deferred && current.setupDeferredAt === undefined) return;
+    const next: StoredSession = { ...current };
+    if (deferred) next.setupDeferredAt = this.now();
+    else delete next.setupDeferredAt;
+    await this.deps.saveSession(next);
+    this.set({ session: next });
   }
 
   private async persistTokens(t: TokenUpdate): Promise<void> {

@@ -4,7 +4,7 @@ import { t } from "../i18n";
 import { toAuthError, type AuthError } from "../matrix/errors";
 import type { VerificationFlow } from "../matrix/verification";
 import type { MatrixClient } from "../matrix/client";
-import { useSession } from "../session/SessionProvider";
+import { useSession, useSessionController } from "../session/SessionProvider";
 import { useSecurity, type SecurityStore } from "../session/security";
 import { useConversations } from "../session/useRooms";
 import { authErrorMessage } from "./auth";
@@ -38,6 +38,13 @@ function FlowView({
 }) {
   const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
   const [actionError, setActionError] = useState<AuthError | null>(null);
+  const controller = useSessionController();
+
+  // A device that skipped setup becomes verified here: re-check readiness so the
+  // unverified-device notice clears without a reload (ADR-0003 D5, amended).
+  useEffect(() => {
+    if (self && state.phase === "done") void controller.refreshReadiness();
+  }, [controller, self, state.phase]);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {

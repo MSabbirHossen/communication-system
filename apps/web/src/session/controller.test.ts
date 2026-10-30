@@ -169,4 +169,117 @@ describe("SessionController", () => {
     expect(c.getSnapshot().status).toBe("ready");
     expect(c.getSnapshot().setup).toMatchObject({ phase: "done", outcome: { outcome: "created" } });
   });
+
+  describe("deferred secure setup (ADR-0003 D5, amended 2026-10-31)", () => {
+    const notReady = () => ({
+      crossSigningReady: false,
+      secretStorageReady: false,
+      keyBackupEnabled: false,
+      accountHasCrossSigning: true,
+    });
+    const ready = () => ({
+      crossSigningReady: true,
+      secretStorageReady: true,
+      keyBackupEnabled: true,
+      accountHasCrossSigning: true,
+    });
+
+    it("records a skip in the session record and opens the app with the notice", async () => {
+      const deps = fakeDeps({
+        loadSession: vi.fn(async () => testSession),
+        getCryptoReadiness: vi.fn(async () => notReady()),
+        ensureCryptoReady: vi.fn(async (_c, _h, prompts) => {
+          expect(await prompts.requestRecoveryKey(1)).toBeNull();
+          return { outcome: "skipped_needs_verification" as const };
+        }),
+        now: () => 1_700_000_100_000,
+      });
+      const c = new SessionController(deps);
+      await c.boot();
+      expect(c.getSnapshot().status).toBe("crypto_setup");
+      const run = c.runSetup();
+      await vi.waitFor(() => expect(c.getSnapshot().setup.phase).toBe("need_recovery_key"));
+      c.skipRecoveryKey();
+      await run;
+      expect(c.getSnapshot()).toMatchObject({ status: "ready", deviceUnverified: true });
+      expect(deps.saveSession).toHaveBeenCalledWith(
+        expect.objectContaining({ setupDeferredAt: 1_700_000_100_000 }),
+      );
+      expect(c.getSnapshot().session?.setupDeferredAt).toBe(1_700_000_100_000);
+    });
+
+    it("opens the app directly on a later start when the skip is recorded", async () => {
+      const logged: string[] = [];
+      const deps = fakeDeps({
+        loadSession: vi.fn(async () => ({ ...testSession, setupDeferredAt: 1 })),
+        getCryptoReadiness: vi.fn(async () => notReady()),
+      });
+      (deps.logger as unknown as { info: (m: string, d?: object) => void }).info = (m, d) =>
+        void logged.push(`${m} ${JSON.stringify(d)}`);
+      const c = new SessionController(deps);
+      await c.boot();
+      expect(c.getSnapshot()).toMatchObject({ status: "ready", deviceUnverified: true });
+      expect(deps.ensureCryptoReady).not.toHaveBeenCalled();
+      const line = logged.find((l) => l.startsWith("secure device setup deferred"));
+      expect(line).toContain(testSession.deviceId);
+      expect(line).not.toContain(testSession.accessToken);
+    });
+
+    it("still forces setup when the account has no cross-signing (first device)", async () => {
+      const deps = fakeDeps({
+        loadSession: vi.fn(async () => ({ ...testSession, setupDeferredAt: 1 })),
+        getCryptoReadiness: vi.fn(async () => ({ ...notReady(), accountHasCrossSigning: false })),
+      });
+      const c = new SessionController(deps);
+      await c.boot();
+      expect(c.getSnapshot()).toMatchObject({ status: "crypto_setup", deviceUnverified: false });
+    });
+
+    it("clears a stale skip once the device is ready at start", async () => {
+      const deps = fakeDeps({
+        loadSession: vi.fn(async () => ({ ...testSession, setupDeferredAt: 1 })),
+        getCryptoReadiness: vi.fn(async () => ready()),
+      });
+      const c = new SessionController(deps);
+      await c.boot();
+      expect(c.getSnapshot()).toMatchObject({ status: "ready", deviceUnverified: false });
+      expect(c.getSnapshot().session?.setupDeferredAt).toBeUndefined();
+      expect(deps.saveSession).toHaveBeenCalledWith(
+        expect.not.objectContaining({ setupDeferredAt: expect.anything() }),
+      );
+    });
+
+    it("reopens setup from the notice and clears it after a verification", async () => {
+      const readiness = vi.fn(async () => notReady());
+      const deps = fakeDeps({
+        loadSession: vi.fn(async () => ({ ...testSession, setupDeferredAt: 1 })),
+        getCryptoReadiness: readiness,
+      });
+      const c = new SessionController(deps);
+      await c.boot();
+      expect(c.getSnapshot().deviceUnverified).toBe(true);
+
+      await c.refreshReadiness(); // still unverified: nothing changes
+      expect(c.getSnapshot()).toMatchObject({ status: "ready", deviceUnverified: true });
+
+      readiness.mockImplementation(async () => ready());
+      await c.refreshReadiness();
+      expect(c.getSnapshot()).toMatchObject({ status: "ready", deviceUnverified: false });
+      expect(c.getSnapshot().session?.setupDeferredAt).toBeUndefined();
+
+      c.reopenSetup(); // no longer unverified: ignored
+      expect(c.getSnapshot().status).toBe("ready");
+    });
+
+    it("reopenSetup returns to the setup screen while unverified", async () => {
+      const deps = fakeDeps({
+        loadSession: vi.fn(async () => ({ ...testSession, setupDeferredAt: 1 })),
+        getCryptoReadiness: vi.fn(async () => notReady()),
+      });
+      const c = new SessionController(deps);
+      await c.boot();
+      c.reopenSetup();
+      expect(c.getSnapshot()).toMatchObject({ status: "crypto_setup", setup: { phase: "idle" } });
+    });
+  });
 });

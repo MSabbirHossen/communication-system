@@ -1,5 +1,5 @@
 import { afterAll, expect, it } from "vitest";
-import { ensureCryptoReady } from "../../src/matrix/cryptoSetup";
+import { ensureCryptoReady, getCryptoReadiness } from "../../src/matrix/cryptoSetup";
 import { listOwnDevices } from "../../src/matrix/devices";
 import { SecretStorageKeyHolder } from "../../src/matrix/recoveryKey";
 import {
@@ -87,6 +87,12 @@ describeIntegration("own-device verification (SAS emoji)", () => {
     await waitFor(
       "A sees B as verified",
       async () => (await verificationOf(devices)()) === "verified",
+    );
+    // What the app's unverified-device notice relies on after a skip: once verified, the
+    // device reports cross-signing ready (ADR-0003 D5, amended).
+    await waitFor(
+      "B reports cross-signing ready",
+      async () => (await getCryptoReadiness(devices.b)).crossSigningReady,
     );
     flowA.dispose();
     flowB.dispose();

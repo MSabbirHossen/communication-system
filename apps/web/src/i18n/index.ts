@@ -313,7 +313,7 @@ const en = {
     "This device is set up. Your recovery key is saved and encrypted backup is on.",
   "setup.done.restored": "Your identity and encrypted history were restored on this device.",
   "setup.done.unverified":
-    "This device is signed in but not yet verified. Verify it from one of your other devices (Settings → Devices) to use it for encrypted messages with full trust.",
+    "This device is signed in but not yet verified. You can use it now; a notice stays at the top until you enter your recovery key or verify it from one of your other devices (Settings → Devices).",
 
   // Dialogs
   "dialog.confirm": "Confirm",
@@ -406,6 +406,10 @@ const en = {
   "notice.verificationRequest.action": "Review",
   "notice.decline": "Decline",
   "notice.dismiss": "Dismiss",
+  "notice.deviceUnverified":
+    "This device isn't verified. Your other devices won't trust it, and earlier encrypted history can't be shown here, until you enter your recovery key or verify it from another device.",
+  "notice.deviceUnverified.recoveryKey": "Enter recovery key",
+  "notice.deviceUnverified.verify": "Verify from another device",
 
   // Privacy notes (placeholder for the Phase 8 disclosure)
   "privacy.title": "Privacy notes",

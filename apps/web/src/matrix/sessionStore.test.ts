@@ -5,6 +5,7 @@ import {
   SessionStorageUnavailableError,
   clearSession,
   deviceDatabaseNames,
+  isStoredSession,
   loadSession,
   saveSession,
   type StoredSession,
@@ -36,6 +37,13 @@ describe("sessionStore", () => {
     expect(await loadSession(idb)).toEqual(session);
     await clearSession(idb);
     expect(await loadSession(idb)).toBeNull();
+  });
+
+  it("round-trips the deferred-setup marker and rejects a malformed one", async () => {
+    await saveSession({ ...session, setupDeferredAt: 1_700_000_100_000 }, idb);
+    expect((await loadSession(idb))?.setupDeferredAt).toBe(1_700_000_100_000);
+    expect(isStoredSession({ ...session, setupDeferredAt: "yesterday" })).toBe(false);
+    expect(isStoredSession(session)).toBe(true);
   });
 
   it("overwrites rather than accumulates", async () => {

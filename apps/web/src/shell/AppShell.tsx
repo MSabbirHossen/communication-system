@@ -3,6 +3,7 @@ import { t } from "../i18n";
 import { DESKTOP_QUERY, useMediaQuery, useOnlineStatus, useRouteFocus } from "./hooks";
 import { Nav } from "./Nav";
 import { SecurityBanners } from "./SecurityBanners";
+import { UnverifiedDeviceBanner } from "./UnverifiedDeviceBanner";
 import { usePresencePublisher } from "../session/useSettings";
 import { useNotifications } from "../session/useNotifications";
 
@@ -37,6 +38,7 @@ export function AppShell() {
       {desktop && <Nav variant="rail" />}
       <div className="shell__content">
         <OfflineBanner />
+        <UnverifiedDeviceBanner />
         <SecurityBanners />
         <main id="main" className="shell__main" tabIndex={-1}>
           <Outlet context={{ desktop }} />
