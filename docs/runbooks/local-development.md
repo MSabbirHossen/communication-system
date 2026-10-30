@@ -155,8 +155,8 @@ Manual two-account check in one browser (one account per hostname):
 | Chrome | — | Windows | owner | — | pending |
 | Edge | — | Windows | owner | — | pending |
 | Android Chrome | — | Android | owner | — | pending |
-| Firefox | — | — | — | — | not verified (no access) |
-| Safari / iOS Safari | — | — | — | — | not verified (no access) |
+| Firefox | — | — | — | — | out of scope for the beta (owner decision 2026-10-31, ADR-0005 D10) |
+| Safari / iOS Safari | — | — | — | — | out of scope for the beta (owner decision 2026-10-31, ADR-0005 D10) |
 
 ## 11. Phase 5: mobile builds, the device spike and the phone checklist
 

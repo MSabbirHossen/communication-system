@@ -73,6 +73,7 @@ Still open (owner):
 - ADR-0006 acceptance and the Phase 5 gate (after the phone record).
 - `username_claims` need (TRD §19.4); operational ownership of the homeserver, PostgreSQL, backups and push gateway (TRD §19.14); the other TRD §19 items listed as open in ADR-0001 §8 (5, 6, 7, 8, 11, 12, 13, 14).
 - Invite-only beta vs open registration (THREAT_MODEL §7 item 3, Phase 8).
+- Decided 2026-10-31: Firefox and Safari are out of scope for the closed beta (ADR-0005 D10 amended); the skipped-device setup loop (ADR-0003 D5) is being changed, plan first (see STATUS).
 - FCM/APNs credentials and Sygnal hosting (push delivery).
 - iOS on hardware (needs a Mac and an iPhone) and store/signing configuration.
 

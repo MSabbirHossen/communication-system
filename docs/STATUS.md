@@ -68,6 +68,12 @@ Gate **open**: the automated device evidence is complete (Android emulator and i
 | App lock / biometrics | Not in scope | Low |
 | Persisted send queue; HTTP-header CSP; registration gating | Phase 7 | as before |
 | Discoverability, reports, moderation, account deletion | Phase 6 | as before |
+| Firefox and Safari verification | Out of scope for the closed beta (owner, 2026-10-31; ADR-0005 D10) | Medium: users on those browsers are unsupported until a post-beta check |
+
+## Decisions recorded 2026-10-31
+- **Firefox and Safari are out of scope for the closed beta**; the beta supports Chromium-based browsers (ADR-0005 D10 amended).
+- **The skipped-device behaviour (ADR-0003 D5: a device that skipped the recovery key returns to the setup screen on every start) is to be changed now**, plan first; ADR-0003 D5 will be amended with the approved design.
+- `CLAUDE.md` imports `AGENTS.md` so Claude-based agents load the rules automatically; AGENTS.md stays tool-agnostic.
 
 ## Decisions recorded 2026-10-25
 - **WebView floor**: one runtime shim, `Promise.withResolvers`, installed first in the entry point; everything else newer in the bundle is feature-checked by its caller (ADR-0006 D1).
