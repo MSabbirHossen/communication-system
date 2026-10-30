@@ -43,6 +43,7 @@ Owner decisions for Phase 5 (2026-10-24): Android = CI builds + the owner's phon
 
 ## 4. What is in progress
 
+- **2026-10-31 addition (after the handoff snapshot):** the deferred device setup change (`7bab38a`, ADR-0003 D5 amended) is complete and verified; see STATUS.
 - **No code is half-finished.** The working tree at handoff is clean apart from this handoff commit; every check listed in §8 passed at `4427d24` (see §8 for the results recorded at handoff).
 - **Manual, owner-side:** the Android phone checklist (runbook §11) and the device record table in `docs/runbooks/local-development.md` §11 ("Device record"). The run #7 APK bakes the emulator homeserver `http://10.0.2.2:8008`, which a phone cannot reach: dispatch the Mobile workflow with the `homeserver_url` input set to the PC's LAN address (plain http, debug build) and sideload `communication-system-debug.apk` from that run's `android-apks` artifact.
 - **Decision pending:** ADR-0006 is Proposed; the Phase 5 gate decision belongs to the owner after the phone record exists.

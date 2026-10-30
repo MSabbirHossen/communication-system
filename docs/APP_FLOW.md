@@ -228,7 +228,11 @@ acceptance, delivery, or reading. - Show pending, failed, delivered, or
 read states only when the system can substantiate them. - Use safe
 retry/idempotency behavior to avoid accidental duplicate effects. - If a
 device is unverified or a message cannot be decrypted, explain the issue
-without pretending the message is safe or readable.
+without pretending the message is safe or readable. - A device that
+skipped secure setup opens the app with a persistent unverified-device
+notice (enter the recovery key, or verify from another device) rather
+than being sent back to setup on every start (ADR-0003 D5, amended
+2026-10-31).
 
 ### 5.4 Verify a Device or Respond to an Identity Change
 
