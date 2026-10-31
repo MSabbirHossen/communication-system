@@ -1,6 +1,6 @@
 # Handoff — Communication System
 
-**Written:** 2026-10-25 at commit `4427d24` on `main` (79 commits), by the outgoing AI contributor, for the next AI coding agent and the project owner.
+**Written:** 2026-10-25 at `4427d24`; **refreshed 2026-10-31 at `a2b984e`** on `main` (83 commits before this handoff commit), by the outgoing AI contributor, for the next AI coding agent and the project owner.
 **Rules of the road:** `AGENTS.md` (mandatory). **Live state:** `docs/STATUS.md`. This file is a snapshot; when the two disagree, STATUS wins and this file needs an update.
 Status labels below follow AGENTS.md §12: **Implemented / Tested / Verified / Blocked / Deferred**.
 
@@ -18,7 +18,7 @@ Architecture (ADR-0001, Accepted with conditions):
 
 ## 2. Current phase and exit gate
 
-**Active phase: Phase 5 — Android and iOS.** Phases 0–4 are closed (ADR-0001 to ADR-0005 Accepted by the owner, dates in each ADR). Phase 5 is implemented and pushed; the Mobile workflow is green on `dd21d44` (run #7, id 40165486938); the Phase 5 gate is **open** pending the owner's phone checklist and gate decision.
+**Active phase: Phase 5 — Android and iOS.** Phases 0–4 are closed (ADR-0001 to ADR-0005 Accepted by the owner, dates in each ADR). Phase 5 is implemented and pushed; the Mobile workflow is green on `dd21d44` (run #7, id 40165486938) and again on `a2b984e` (run #8, with the 2026-10-31 session change in the bundle); CI #38 is green on `a2b984e`. The Phase 5 gate is **open** pending the owner's phone checklist and gate decision.
 
 | Phase 5 exit criterion (IMPLEMENTATION_PLAN) | Status | Evidence / what remains |
 |---|---|---|
@@ -40,11 +40,11 @@ Owner decisions for Phase 5 (2026-10-24): Android = CI builds + the owner's phon
 | 3 — Encrypted direct messaging | conversation list and invitations, start a DM by identifier, encrypted conversation view with honest message states, history pagination and private read receipts, device warnings and identity-change notices, partner verification by emoji, two-account integration tests with server inspection | `1648408` … `fb84247`; ADR-0004 |
 | 4 — Web experience | per-device tab lease, settings hub and profile, privacy settings honoured by the client, blocking via the Matrix ignore list, generic browser notifications, accessibility/keyboard/responsive/RTL polish, Playwright e2e with axe in CI, one token refresher per device shared across tabs | `b06c5d7` … `bff7576` (fix `7c605a3`); ADR-0005 |
 | 5 — Android and iOS (gate open) | native projects and debug/release variants with CSP from config, session in native secure storage (recovery key never stored), lifecycle hooks, content-free push plumbing with a stub gateway, 13-check device spike runner, Mobile workflow (APK artifacts, emulator spike, simulator spike), docs | `135aab0`, `c101907`, `77be671`, `97d759f`, `5088e51`; CI fixes `22cf406`, `970e807`, `5037863`, `90d4ef9`, `7643c78`, `2e08330`, `dd21d44`; docs `2743ecd`, `4339019`, `4427d24`; ADR-0006 (Proposed) |
+| Inside the open Phase 5 gate, 2026-10-25 and 2026-10-31 | handoff snapshot; owner decisions of 2026-10-31 (Firefox and Safari out of beta scope; `CLAUDE.md` imports `AGENTS.md`); deferred device setup: a device that skipped the recovery key opens the app with a persistent unverified-device notice instead of the setup screen, clearing on verification or recovery-key entry (ADR-0003 D5 amended); docs | `36fb584`, `90d5973`, `7bab38a`, `a2b984e` |
 
 ## 4. What is in progress
 
-- **2026-10-31 addition (after the handoff snapshot):** the deferred device setup change (`7bab38a`, ADR-0003 D5 amended) is complete and verified; see STATUS.
-- **No code is half-finished.** The working tree at handoff is clean apart from this handoff commit; every check listed in §8 passed at `4427d24` (see §8 for the results recorded at handoff).
+- **No code is half-finished.** The working tree is clean apart from this handoff commit; the checks run at the refresh are recorded in `docs/STATUS.md` → Verification → "Handoff checks (2026-10-31)".
 - **Manual, owner-side:** the Android phone checklist (runbook §11) and the device record table in `docs/runbooks/local-development.md` §11 ("Device record"). The run #7 APK bakes the emulator homeserver `http://10.0.2.2:8008`, which a phone cannot reach: dispatch the Mobile workflow with the `homeserver_url` input set to the PC's LAN address (plain http, debug build) and sideload `communication-system-debug.apk` from that run's `android-apks` artifact.
 - **Decision pending:** ADR-0006 is Proposed; the Phase 5 gate decision belongs to the owner after the phone record exists.
 
@@ -68,13 +68,13 @@ Made (where recorded):
 - Direct messaging model, message states, verification UX, device warnings — ADR-0004.
 - Web experience: Matrix-native settings, RTL and catalogue, generic notifications, cross-browser record — ADR-0005.
 - Phase 5: two build variants (debug http origin + cleartext only in the debug build type; release https), session in platform secure storage, recovery key never stored, SDK stores stay in WebView IndexedDB (TM-23, disclosed in the privacy notes), content-free pushers, flagged spike build absent from production bundles, CI as the build and proof path; WebView floor shim (`Promise.withResolvers`), ad-hoc signed simulator builds, emulator job pinned to `ubuntu-24.04` — ADR-0006 (Proposed), THREAT_MODEL TM-12, TM-23, TM-27, TM-28.
+- 2026-10-31 (owner): Firefox and Safari are out of scope for the closed beta — ADR-0005 D10 amended, runbook §10, STATUS deferred table. The skipped-device setup loop is replaced by a persistent unverified-device notice; trust unchanged — ADR-0003 D5 amended, THREAT_MODEL TM-03 and change history, APP_FLOW §5. `CLAUDE.md` imports `AGENTS.md` so Claude Code loads the rules automatically; `AGENTS.md` stays tool-agnostic.
 
 Still open (owner):
 
 - ADR-0006 acceptance and the Phase 5 gate (after the phone record).
 - `username_claims` need (TRD §19.4); operational ownership of the homeserver, PostgreSQL, backups and push gateway (TRD §19.14); the other TRD §19 items listed as open in ADR-0001 §8 (5, 6, 7, 8, 11, 12, 13, 14).
 - Invite-only beta vs open registration (THREAT_MODEL §7 item 3, Phase 8).
-- Decided 2026-10-31: Firefox and Safari are out of scope for the closed beta (ADR-0005 D10 amended); the skipped-device setup loop (ADR-0003 D5) is being changed, plan first (see STATUS).
 - FCM/APNs credentials and Sygnal hosting (push delivery).
 - iOS on hardware (needs a Mac and an iPhone) and store/signing configuration.
 
@@ -149,7 +149,7 @@ Other: `pnpm dev:env:reset` regenerates the Synapse config; `pnpm poc` / `pnpm p
 
 CI (`.github/workflows/ci.yml`, on push to `main`): `checks` (format, lint, typecheck, unit tests, build, spike-marker absence in the production bundle, advisory dependency audit), `secrets-scan`, `dev-env` (compose Synapse + MongoDB + push stub, API readiness, Phase 0 PoC, Phase 2–3 integration tests, Phase 4 e2e, server plaintext inspection, annotations, evidence artifact), and a PoC job against current Synapse. Mobile (`.github/workflows/mobile.yml`, on push to `main` touching `apps/**`, `packages/**`, `infrastructure/**`, the workflow or the lockfile, and on dispatch): `android-build` (debug, spike and release assemble; `android-apks` artifact), `android-spike` (compose Synapse + emulator API 34 + Node peer; evidence artifact), `ios-simulator` (pip Synapse, ad-hoc signed Debug build, simulator spike; evidence artifact). Results are published as annotations on the public run pages.
 
-Results recorded at handoff (2026-10-25, Windows 11, Node 22.20, pnpm 12.14): see `docs/STATUS.md` → Verification → "Handoff checks".
+Results recorded at the handoff and its refresh (2026-10-25 and 2026-10-31, Windows 11, Node 22.20, pnpm 12.14): see `docs/STATUS.md` → Verification → "Handoff checks".
 
 ## 9. Non-negotiable rules (AGENTS.md is the full policy)
 
@@ -172,6 +172,8 @@ Environment (Windows 11, non-elevated shell):
 - Playwright: the installed Chromium must match `@playwright/test`; a killed install leaves `%LOCALAPPDATA%\ms-playwright\__dirlock` to delete. Headless Chromium reports the notification permission as denied even when granted. Run the integration and e2e suites one at a time (a messaging integration test flaked once under parallel load).
 - Two-device browser checks: use distinct localhost subdomains (for example `second.localhost:5173`) against the same Vite server; each is its own origin with its own IndexedDB. Vite HMR after a source edit reloads every tab and wipes unsent composer text.
 - Use throwaway dev accounts only; never act on the owner's own account (`@ms:localhost` on the local homeserver).
+- Claude Code auto-loads `AGENTS.md` only while no `CLAUDE.md` exists; adding `CLAUDE.md` as a prose pointer silently stopped the rules loading until it imported the file (`@AGENTS.md`). Other agents read `AGENTS.md` directly.
+- Screen tests: a fake `ensureCryptoReady` that resolves instantly races an assertion that the setup screen is showing; hold the fake at the recovery-key prompt, as the real one does (`apps/web/src/shell/UnverifiedDeviceBanner.test.tsx`).
 
 Matrix and the SDK:
 
